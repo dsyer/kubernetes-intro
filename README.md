@@ -81,7 +81,7 @@ $ mv deployment.yaml src/main/k8s/demo
 
 Create `src/main/k8s/demo/kustomization.yaml`:
 
-```
+```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
@@ -91,5 +91,51 @@ resources:
 Apply the new manifest (which is so far just the same):
 
 ```
+$ kubectl delete src/main/k8s/demo/deployment.yaml
 $ kubectl apply -k src/main/k8s/demo/
+service/demo created
+deployment.apps/demo created
+```
+
+Now we can strip away some of the manifest and let Kustomize fill in the gaps (`deployment.yaml`):
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo
+spec:
+  template:
+    spec:
+      containers:
+      - image: dsyer/demo
+        name: demo
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo
+spec:
+  ports:
+  - name: 80-8080
+    port: 80
+    protocol: TCP
+    targetPort: 8080
+```
+
+Add labels to the kustomization:
+
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+commonLabels:
+  app: app
+resources:
+- deployment.yaml
+```
+
+Maybe switch to `kustomize` on the command line (to pick up latest version, although at this stage it doesn't matter):
+
+```
+$ kubectl apply -f <(kustomize build src/main/k8s/demo)
 ```
