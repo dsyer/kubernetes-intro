@@ -6,6 +6,5 @@ images:
   - name: dsyer/template
     newName: dsyer/demo
 resources:
-- github.com/dsyer/docker-services/layers/base
-transformers:
-  - github.com/dsyer/docker-services/layers/actuator
+- deployment.yaml
+- ingress.yaml
