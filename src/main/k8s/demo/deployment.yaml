@@ -1,17 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  labels:
-    app: demo
   name: demo
 spec:
-  selector:
-    matchLabels:
-      app: demo
   template:
-    metadata:
-      labels:
-        app: demo
     spec:
       containers:
       - image: dsyer/demo
@@ -20,8 +12,6 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  labels:
-    app: demo
   name: demo
 spec:
   ports:
@@ -29,6 +19,3 @@ spec:
     port: 80
     protocol: TCP
     targetPort: 8080
-  selector:
-    app: demo
-  type: ClusterIP
