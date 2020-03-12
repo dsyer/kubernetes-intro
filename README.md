@@ -1,3 +1,5 @@
+## Getting Started
+
 Create a basic Spring Boot application:
 
 ```
@@ -46,6 +48,26 @@ Run and test...
 $ mvn package
 $ docker build -t dsyer/demo .
 $ docker run -p 8080:8080 dsyer/demo
+$ curl localhost:8080
+Hello World
+```
+
+## Deploy to Kubernetes
+
+Create a basic manifest:
+
+```
+$ docker push dsyer/demo
+$ kubectl create deployment demo --image=dsyer/demo --dry-run -o=yaml > deployment.yaml
+$ echo --- >> deployment.yaml
+$ kubectl create service clusterip demo --tcp=80:8080 --dry-run -o=yaml >> deployment.yaml
+```
+
+Apply it:
+
+```
+$ kubectl apply -f deployment.yaml
+$ kubectl port-forward svc/demo 8080:80
 $ curl localhost:8080
 Hello World
 ```
