@@ -139,3 +139,34 @@ Maybe switch to `kustomize` on the command line (to pick up latest version, alth
 ```
 $ kubectl apply -f <(kustomize build src/main/k8s/demo)
 ```
+
+## Modularize
+
+Delete the current deployment:
+
+```
+$ kubectl delete -f src/main/k8s/demo/deployment.yaml
+```
+
+and then remove `deployment.yaml` and replace the reference to it in the kustomization with an example from a library, adding also an image replacement:
+
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+commonLabels:
+  app: app
+images:
+  - name: dsyer/template
+    newName: dsyer/demo
+resources:
+- github.com/dsyer/docker-services/layers/base
+```
+
+Deploy again:
+
+```
+$ kubectl apply -f <(kustomize build src/main/k8s/demo/)
+configmap/env-config created
+service/app created
+deployment.apps/app created
+```
