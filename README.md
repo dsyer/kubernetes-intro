@@ -71,3 +71,25 @@ $ kubectl port-forward svc/demo 8080:80
 $ curl localhost:8080
 Hello World
 ```
+
+## Organize with Kustomize
+
+```
+$ mkdir -p src/main/k8s/demo
+$ mv deployment.yaml src/main/k8s/demo
+```
+
+Create `src/main/k8s/demo/kustomization.yaml`:
+
+```
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- deployment.yaml
+```
+
+Apply the new manifest (which is so far just the same):
+
+```
+$ kubectl apply -k src/main/k8s/demo/
+```
