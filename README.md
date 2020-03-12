@@ -170,3 +170,30 @@ configmap/env-config created
 service/app created
 deployment.apps/app created
 ```
+
+You can also add features from the library as patches. E.g. tell Kubernetes that we have Spring Boot actuators in our app:
+
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+commonLabels:
+  app: app
+images:
+  - name: dsyer/template
+    newName: dsyer/demo
+resources:
+- github.com/dsyer/docker-services/layers/base
+transformers:
+  - github.com/dsyer/docker-services/layers/actuator
+```
+
+Deploy it:
+
+```
+$ kubectl apply -f <(kustomize build src/main/k8s/demo/)
+configmap/env-config unchanged
+service/app unchanged
+deployment.apps/app configured
+```
+
+Something changed in the deployment (liveness and readiness probes).
