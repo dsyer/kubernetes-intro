@@ -7,3 +7,5 @@ images:
     newName: dsyer/demo
 resources:
 - github.com/dsyer/docker-services/layers/base
+transformers:
+  - github.com/dsyer/docker-services/layers/actuator
