@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches:
+    - '**'
+    - '!dependabot/**'
+  pull_request: {}
+
+jobs:
+
+  fats:
+    name: FATS
+    runs-on: ubuntu-latest
+    env:
+      CLUSTER: kind
+      REGISTRY: docker-daemon
+      DOCKER_BUILDKIT: 1
+    steps:
+    - uses: actions/checkout@v2
+    - uses: cachix/install-nix-action@v7
+    - name: Setup env
+      run: |
+        job=$(date +%s) # TODO use something that is assigned by CI to guarantee uniqueness
+        echo "JOB_ID=${job}"
+        echo "##[set-env name=CLUSTER_NAME]cli-${job}-${{ matrix.config.qualifier }}"
+        echo "##[set-env name=NAMESPACE]cli-${job}-${{ matrix.config.qualifier }}"
+      shell: bash
+    - name: Build Apps
+      run: nix-shell --run .github/workflows/build.sh
+      shell: bash
