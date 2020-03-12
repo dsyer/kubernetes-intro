@@ -2,5 +2,8 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 commonLabels:
   app: app
+images:
+  - name: dsyer/template
+    newName: dsyer/demo
 resources:
-- deployment.yaml
+- github.com/dsyer/docker-services/layers/base
