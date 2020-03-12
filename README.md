@@ -196,4 +196,102 @@ service/app unchanged
 deployment.apps/app configured
 ```
 
-Something changed in the deployment (liveness and readiness probes).
+Something changed in the deployment (liveness and readiness probes):
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+...
+        livenessProbe:
+          httpGet:
+            path: /actuator/info
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 3
+        name: app
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 20
+          periodSeconds: 10
+```
+
+## Spring Boot Features
+
+* + Buildpack support in `pom.xml` or `build.gradle`
+* Actuators (separate port or not?)
+* + Graceful shutdown
+* Loading `application.properties` and `application.yml`
+* Autoconfiguration of databases, message brokers, etc.
+* ? Support for actuators with Kubernetes API keys
+
+To get a buildpack image, upgrade to Spring Boot 2.3 and run the plugin (`pom.xml`):
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>2.3.0.M3</version>
+		<relativePath/> <!-- lookup parent from repository -->
+	</parent>
+...
+	<repositories>
+		<repository>
+			<id>spring-milestones</id>
+			<name>Spring Milestones</name>
+			<url>https://repo.spring.io/milestone</url>
+		</repository>
+		</repositories>
+		<pluginRepositories>
+		<pluginRepository>
+			<id>spring-milestones</id>
+			<name>Spring Milestones</name>
+			<url>https://repo.spring.io/milestone</url>
+		</pluginRepository>
+	</pluginRepositories>
+
+</project>
+```
+
+```
+$ ./mvnw spring-boot:build-image
+...
+[INFO] Successfully built image 'docker.io/library/demo:0.0.1-SNAPSHOT'
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+...
+$ docker run -p 8080:8080 demo:0.0.1-SNAPSHOT
+Container memory limit unset. Configuring JVM for 1G container.
+Calculated JVM Memory Configuration: -XX:MaxDirectMemorySize=10M -XX:MaxMetaspaceSize=86381K -XX:ReservedCodeCacheSize=240M -Xss1M -Xmx450194K (Head Room: 0%, Loaded Class Count: 12837, Thread Count: 250, Total Memory: 1073741824)
+...
+```
+
+> NOTE: The CF memory calculator is used at runtime to size the JVM to fit the container.
+
+You can also change the image label:
+
+```xml
+<project>
+    ...
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+				<configuration>
+					<image>
+						<name>dsyer/${project.artifactId}</name>
+					</image>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+</project>
+```
