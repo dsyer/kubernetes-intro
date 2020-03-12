@@ -295,3 +295,44 @@ You can also change the image label:
 	</build>
 </project>
 ```
+
+## The Bad Bits: Ingress
+
+[Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/) in Kubernetes refers to an API resource that defines how HTTP requests get routed to applications (or rather services). You can create rules based on hostname or URL paths. Example:
+
+```yaml
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: ingress
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+spec:
+  rules:
+  - host: demo
+    http:
+      paths:
+        - path: /
+          backend:
+            serviceName: app
+            servicePort: 80
+```
+
+Apply this YAML and check the status:
+
+```
+$ kubectl apply -f src/main/k8s/demo/ingress.yaml
+$ kubectl get ingress
+NAME      HOSTS   ADDRESS       PORTS   AGE
+ingress   demo    10.103.4.16   80      2m15s
+```
+
+So it's working (because we had nginx ingress already installed in the cluster) and we can connect to the service through the ingress:
+
+```
+$ kubectl port-forward --namespace=ingress-nginx service/ingress-nginx 8080:80
+$ curl localhost:8080 -H "Host: demo"
+Hello World!!
+```
+
+Having to add `Host: demo` to HTTP requests manually is kind of a pain. Normally you want to rely on default behaviour of HTTP clients (like browsers) and just `curl demo`. But that means you need DNS or `/etc/hosts` configuration and that's where it gets to be even more painful. DNS changes can take minutes or even hours to propagate, and `/etc/hosts` only works on your machine.

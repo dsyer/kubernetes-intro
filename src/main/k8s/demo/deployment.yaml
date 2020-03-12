@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo
+spec:
+  template:
+    spec:
+      containers:
+      - image: dsyer/demo
+        name: demo
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo
+spec:
+  ports:
+  - name: 80-8080
+    port: 80
+    protocol: TCP
+    targetPort: 8080
