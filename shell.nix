@@ -1,16 +1,10 @@
 with import <nixpkgs> {};
-stdenv.mkDerivation {
+pkgs.mkShell {
   name = "env";
-  buildInputs = [
-    jdk11
-    kind
-    kubectl
-    kustomize
-    figlet
-  ];
+  buildInputs = [ (import ./default.nix { inherit pkgs; }) ];
   shellHook = ''
     figlet ":smile:"
-   ./.github/workflows/kind-setup.sh
-   kubectl get all
+    ./.github/workflows/kind-setup.sh
+    kubectl get all
 '';
 } 

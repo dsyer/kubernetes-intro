@@ -25,7 +25,9 @@ jobs:
         echo "JOB_ID=${job}"
         echo "##[set-env name=CLUSTER_NAME]cli-${job}-${{ matrix.config.qualifier }}"
         echo "##[set-env name=NAMESPACE]cli-${job}-${{ matrix.config.qualifier }}"
+        nix-env -i -f default.nix
+        ./.github/workflows/kind-setup.sh
       shell: bash
     - name: Build Apps
-      run: nix-shell --run .github/workflows/build.sh
+      run: .github/workflows/build.sh
       shell: bash
