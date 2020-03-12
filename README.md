@@ -341,3 +341,40 @@ Having to add `Host:demo` to HTTP requests manually is kind of a pain. Normally 
 >
 >     $ kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/nginx-0.30.0/deploy/static/mandatory.yaml
 >     $ kubectl apply -f <(curl https://raw.githubusercontent.com/kubernetes/ingress-nginx/nginx-0.30.0/deploy/static/provider/baremetal/service-nodeport.yaml | sed -i -e '/  type:.*/d')
+
+## The Bad Bits: Persistent Volumes
+
+How about an app with a database? Let's look at a PetClinic:
+
+```
+$ kubectl apply -f <(kustomize build github.com/dsyer/docker-services/layers/samples/petclinic)
+configmap/petclinic-env-config created
+configmap/petclinic-mysql-config created
+configmap/petclinic-mysql-env created
+service/petclinic-app created
+service/petclinic-mysql created
+deployment.apps/petclinic-app created
+deployment.apps/petclinic-mysql created
+persistentvolumeclaim/petclinic-mysql created
+$ kubectl port-forward service/petclinic-app 8080:80
+```
+
+Visit `http://localhost:8080` in your browser:
+
+![PetClinic](https://i.imgur.com/MCgAL4n.png)
+
+So that works. What's the problem?
+
+```
+$ kubectl get persistentvolumeclaim
+NAME              STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+petclinic-mysql   Bound    pvc-68d43a16-1953-4754-893c-5f383556b912   8Gi        RWO            standard       5m25s
+```
+
+All perfectly fine, so what is the problem? The PVC is "Bound", which means there was a PV that satisfied its resource constraints. That won't always be the case, and you might need an admin operator to fix it. It worked here because there is a default PV. Some platforms have that, and some don't.
+
+More issues with this PetClinic:
+
+* The database is tied to the app, all wrapped up in the same manifest. It's great for getting started and getting something running, but it won't be structured like that in production.
+
+* The database probably isn't fit for production use. It has a clear text password for instance.
