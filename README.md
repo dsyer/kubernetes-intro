@@ -476,3 +476,68 @@ deploy:
     paths: 
     - "src/main/k8s/demo/"
 ```
+
+## Hot Reload in Skaffold with Spring Boot Devtools
+
+Add `spring-boot-devtools` to your project `pom.xml`:
+
+```xml
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-devtools</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+```
+
+and make sure it gets added to the runtime image in (see `excludeDevtools`):
+
+```xml
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+				<configuration>
+					<excludeDevtools>false</excludeDevtools>
+					<image>
+						<name>${docker.image}</name>
+					</image>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+```
+
+Then in `skaffold.yaml` we can use changes in source files to sync to the running container instead of doing a full rebuild:
+
+```yaml
+apiVersion: skaffold/v2alpha4
+kind: Config
+metadata:
+  name: demo-app--
+build:
+  artifacts:
+  - image: localhost:5000/apps/demo
+    custom:
+      buildCommand: ./mvnw spring-boot:build-image -D docker.image=$IMAGE && docker push $IMAGE
+      dependencies:
+        paths:
+        - pom.xml
+        - src/main/resources
+        - target/classes
+    sync:
+      manual:
+      - src: "src/main/resources/**/*"
+        dest: /workspace/BOOT-INF/classes
+        strip: src/main/resources/
+      - src: "target/classes/**/*"
+        dest: /workspace/BOOT-INF/classes
+        strip: target/classes/
+...
+```
+
+The key parts of this are the `custom.dependencies` and `sync.manual` fields. They have to match - i.e. no files are copied into the running container from `sync` if they don't appear also in `dependencies`.
+
+The effect is that if any `.java` or `.properties` files are changed, they are copied into the running container, and this causes Spring Boot to restart the app, usually quite quickly.
+
+> NOTE: You can use Skaffold and Maven "profiles" to keep the devtools stuff only at dev time. The production image can be built without the devtools dependency if the flag is inverted or the dependency is removed.
