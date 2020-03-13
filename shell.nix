@@ -1,10 +1,19 @@
 with import <nixpkgs> {};
-pkgs.mkShell {
+let
+  extensions = pkgs.vscode-utils.extensionsFromVscodeMarketplace (import ./nix/extensions.nix).extensions;
+  vscode-with-extensions = pkgs.vscode-with-extensions.override {
+    vscodeExtensions = extensions;
+  };
+in pkgs.mkShell {
   name = "env";
-  buildInputs = [ (import ./default.nix { inherit pkgs; }) ];
+  buildInputs = [
+    (import ./default.nix { inherit pkgs; })
+    figlet
+    vscode-with-extensions
+  ];
   shellHook = ''
     figlet ":smile:"
-    ./.github/workflows/kind-setup.sh
+    kind-setup
     kubectl get all
 '';
 } 
