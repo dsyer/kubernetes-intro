@@ -13,6 +13,7 @@ in buildEnv {
     kind
     kubectl
     kustomize
+    skaffold
     kindSetup
   ];
 }

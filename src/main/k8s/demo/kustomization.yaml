@@ -3,8 +3,8 @@ kind: Kustomization
 commonLabels:
   app: app
 images:
-  - name: dsyer/template
-    newName: dsyer/demo
+  - name: dsyer/demo
+    newName: localhost:5000/apps/demo
 resources:
 - deployment.yaml
 - ingress.yaml

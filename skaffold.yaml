@@ -1,0 +1,12 @@
+apiVersion: skaffold/v2alpha3
+kind: Config
+metadata:
+  name: demo-app--
+build:
+  artifacts:
+  - image: localhost:5000/apps/demo
+    docker: {}
+deploy:
+  kustomize:
+    paths: 
+    - "src/main/k8s/demo/"

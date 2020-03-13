@@ -8,6 +8,9 @@ spec:
       containers:
       - image: dsyer/demo
         name: demo
+        env:
+        - name: JAVA_OPTS
+          value: -Dspring.main.lazy-initialization=true -noverify -XX:TieredStopAtLevel=1
 ---
 apiVersion: v1
 kind: Service
