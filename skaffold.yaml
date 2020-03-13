@@ -9,8 +9,17 @@ build:
       buildCommand: ./mvnw spring-boot:build-image -D docker.image=$IMAGE && docker push $IMAGE
       dependencies:
         paths:
-        - src
         - pom.xml
+        - src/main/resources
+        - target/classes
+    sync:
+      manual:
+      - src: "src/main/resources/**/*"
+        dest: /workspace/BOOT-INF/classes
+        strip: src/main/resources/
+      - src: "target/classes/**/*"
+        dest: /workspace/BOOT-INF/classes
+        strip: target/classes/
 deploy:
   kustomize:
     paths: 
