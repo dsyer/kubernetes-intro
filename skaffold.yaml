@@ -1,11 +1,16 @@
-apiVersion: skaffold/v2alpha3
+apiVersion: skaffold/v2alpha4
 kind: Config
 metadata:
   name: demo-app--
 build:
   artifacts:
   - image: localhost:5000/apps/demo
-    docker: {}
+    custom:
+      buildCommand: ./mvnw spring-boot:build-image -D docker.image=$IMAGE && docker push $IMAGE
+      dependencies:
+        paths:
+        - src
+        - pom.xml
 deploy:
   kustomize:
     paths: 

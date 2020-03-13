@@ -16,6 +16,7 @@
 
 	<properties>
 		<java.version>1.8</java.version>
+		<docker.image>localhost:5000/apps/${project.artifactId}</docker.image>
 	</properties>
 
 	<dependencies>
@@ -53,7 +54,7 @@
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<configuration>
 					<image>
-						<name>dsyer/${project.artifactId}</name>
+						<name>${docker.image}</name>
 					</image>
 				</configuration>
 			</plugin>
