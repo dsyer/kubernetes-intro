@@ -399,3 +399,34 @@ This needs to be wired into the Kubernetes cluster. There's a prototype [here](h
 The prototype has a [PetClinic](https://github.com/dsyer/spring-boot-operator/blob/master/config/samples/petclinic.yaml) that you can deploy to get a feeling for the differences.
 
 The danger with such abstractions is that they potentially close off areas that were formally verbose but flexible. Also, there is a problem with cognitive-saturation - too many CRDs means too many things to learn and too many to keep track of in your cluster.
+
+## Developer Experience with Skaffold
+
+[Skaffold](https://skaffold.dev) is a tool from Google that helps reduce toil for the change-build-test cycle including deploying to Kubernetes.  We can start with a really simple Docker based build (in `skaffold.yaml`):
+
+```yaml
+apiVersion: skaffold/v2alpha3
+kind: Config
+metadata:
+  name: demo-app--
+build:
+  artifacts:
+  - image: localhost:5000/apps/demo
+    docker: {}
+deploy:
+  kustomize:
+    paths: 
+    - "src/main/k8s/demo/"
+```
+
+Start the app:
+
+```
+$ skaffold dev --port-forward
+...
+Watching for changes...
+Port forwarding service/app in namespace default, remote port 80 -> address 127.0.0.1 port 4503
+...
+```
+
+You can test that the app is running on port 4503. Because of the way we defined our `Dockerfile`, it is watching for changes in the jar file. So we can make as many changes as we want to the source code and they only get deployed if we rebuild the jar.
