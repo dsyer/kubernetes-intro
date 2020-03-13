@@ -430,3 +430,49 @@ Port forwarding service/app in namespace default, remote port 80 -> address 127.
 ```
 
 You can test that the app is running on port 4503. Because of the way we defined our `Dockerfile`, it is watching for changes in the jar file. So we can make as many changes as we want to the source code and they only get deployed if we rebuild the jar.
+
+## Using Spring Boot Docker Images with Skaffold
+
+Skaffold has a custom builder option, so we can use that to hook in the buildpack support. First we need to make the image name a parameter of the build (in `pom.xml`):
+
+```xml
+<properties>
+	<java.version>1.8</java.version>
+	<docker.image>localhost:5000/apps/${project.artifactId}</docker.image>
+</properties>
+<build>
+	<plugins>
+		<plugin>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-maven-plugin</artifactId>
+			<configuration>
+				<image>
+					<name>${docker.image}</name>
+				</image>
+			</configuration>
+		</plugin>
+	</plugins>
+</build>
+```
+
+and then we can set up Skaffold like this:
+
+```yaml
+apiVersion: skaffold/v2alpha4
+kind: Config
+metadata:
+  name: demo-app--
+build:
+  artifacts:
+  - image: localhost:5000/apps/demo
+    custom:
+      buildCommand: ./mvnw spring-boot:build-image -D docker.image=$IMAGE && docker push $IMAGE
+      dependencies:
+        paths:
+        - src
+        - pom.xml
+deploy:
+  kustomize:
+    paths: 
+    - "src/main/k8s/demo/"
+```
