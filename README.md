@@ -1,3 +1,14 @@
+## Pre-requisites
+
+If you can install [Nix](https://nixos.org/nix/) then do that and then just `nix-shell` on your command line to install all dependencies except Docker. If you can't do that, you will need to install them manually. Here's what it installs:
+
+* `kind` (you might not need that if you can get hold of a Kubernetes cluster some other way)
+* `kubectl`
+* `kustomize`
+* `skaffold`
+
+There is a `kind-setup.sh` script that you might feel like using to set up a Kubernetes cluster and a Docker registry. And maybe an IDE (the `nix-shell` install VSCode and adds some useful extensions).
+
 ## Getting Started
 
 Create a basic Spring Boot application:
@@ -45,9 +56,9 @@ ENTRYPOINT ["java","-cp","app:app/lib/*","com.example.demo.DemoApplication"]
 Run and test...
 
 ```
-$ mvn package
-$ docker build -t dsyer/demo .
-$ docker run -p 8080:8080 dsyer/demo
+$ ./mvnw package
+$ docker build -t localhost:5000/dsyer/demo .
+$ docker run -p 8080:8080 localhost:5000/dsyer/demo
 $ curl localhost:8080
 Hello World
 ```
@@ -57,8 +68,8 @@ Hello World
 Create a basic manifest:
 
 ```
-$ docker push dsyer/demo
-$ kubectl create deployment demo --image=dsyer/demo --dry-run -o=yaml > deployment.yaml
+$ docker push localhost:5000/dsyer/demo
+$ kubectl create deployment demo --image=localhost:5000/dsyer/demo --dry-run -o=yaml > deployment.yaml
 $ echo --- >> deployment.yaml
 $ kubectl create service clusterip demo --tcp=80:8080 --dry-run -o=yaml >> deployment.yaml
 ```
@@ -108,7 +119,7 @@ spec:
   template:
     spec:
       containers:
-      - image: dsyer/demo
+      - image: localhost:5000/dsyer/demo
         name: demo
 ---
 apiVersion: v1
@@ -157,7 +168,7 @@ commonLabels:
   app: app
 images:
   - name: dsyer/template
-    newName: dsyer/demo
+    newName: localhost:5000/dsyer/demo
 resources:
 - github.com/dsyer/docker-services/layers/base
 ```
@@ -180,7 +191,7 @@ commonLabels:
   app: app
 images:
   - name: dsyer/template
-    newName: dsyer/demo
+    newName: localhost:5000/dsyer/demo
 resources:
 - github.com/dsyer/docker-services/layers/base
 transformers:
@@ -389,7 +400,7 @@ kind: Microservice
 metadata:
   name: demo
 spec:
-  image: dsyer/demo
+  image: localhost:5000/dsyer/demo
 ```
 
 That's actually all you need to know to create the 30-50 lines of YAML in the original sample. The idea is to expand it in cluster and create the service, deployment (ingress, etc.) automatically. Kubernetes also ties those resources to the "microservice" and does garbage collection - if you delete the parent resource they all get deleted. There are other benefits to having an abstraction that is visible in the Kubernetes API.
@@ -399,6 +410,26 @@ This needs to be wired into the Kubernetes cluster. There's a prototype [here](h
 The prototype has a [PetClinic](https://github.com/dsyer/spring-boot-operator/blob/master/config/samples/petclinic.yaml) that you can deploy to get a feeling for the differences.
 
 The danger with such abstractions is that they potentially close off areas that were formally verbose but flexible. Also, there is a problem with cognitive-saturation - too many CRDs means too many things to learn and too many to keep track of in your cluster.
+
+## Another Idea
+
+Instead of a CRD that creates deployments, you could have a CRD that injects stuff into existing deployments. Kubernetes has a `PodPreset` feature that is a similar idea, and the implementation would be similar (a mutating webhook). E.g.
+
+```yaml
+apiVersion: spring.io/v1
+kind: Microservice
+metadata:
+  name: demo
+spec:
+  target:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: demo
+```
+
+The "opinions" about what to inject into the "demo" deployment could be located in the Microservice controller. It can look at the metadata in the container image and add probes that match the dependencies - if actuator is present use `/actuator/info`. If there is no metadata in the container the manifest can list opinions explicitly.
+
+The "target" for the Microservice could also be a Kubernetes selector (e.g. all deployments with a specific label).
 
 ## Developer Experience with Skaffold
 
