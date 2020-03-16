@@ -7,7 +7,7 @@ If you can install [Nix](https://nixos.org/nix/) then do that and then just `nix
 * `kustomize`
 * `skaffold`
 
-There is a `kind-setup.sh` script that you might feel like using to set up a Kubernetes cluster and a Docker registry. And maybe an IDE (the `nix-shell` install VSCode and adds some useful extensions).
+There is a `kind-setup.sh` script that you might feel like using to set up a Kubernetes cluster and a Docker registry. And maybe an IDE would come in handy, but not mandatory (the `nix-shell` install VSCode and adds some useful extensions).
 
 ## Getting Started
 
@@ -187,13 +187,7 @@ You can also add features from the library as patches. E.g. tell Kubernetes that
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-commonLabels:
-  app: app
-images:
-  - name: dsyer/template
-    newName: localhost:5000/dsyer/demo
-resources:
-- github.com/dsyer/docker-services/layers/base
+...
 transformers:
   - github.com/dsyer/docker-services/layers/actuator
 ```
@@ -230,12 +224,13 @@ kind: Deployment
 
 ## Spring Boot Features
 
-* + Buildpack support in `pom.xml` or `build.gradle`
+* \+ Buildpack support in `pom.xml` or `build.gradle`
 * Actuators (separate port or not?)
-* + Graceful shutdown
+* \+ Graceful shutdown
 * Loading `application.properties` and `application.yml`
 * Autoconfiguration of databases, message brokers, etc.
 * ? Support for actuators with Kubernetes API keys
+* Decryption of encrypted secrets in process (e.g. Spring Cloud Commons and Spring Cloud Vault)
 
 To get a buildpack image, upgrade to Spring Boot 2.3 and run the plugin (`pom.xml`):
 
@@ -286,7 +281,7 @@ Calculated JVM Memory Configuration: -XX:MaxDirectMemorySize=10M -XX:MaxMetaspac
 
 > NOTE: The CF memory calculator is used at runtime to size the JVM to fit the container.
 
-You can also change the image label:
+You can also change the image tag:
 
 ```xml
 <project>
@@ -298,7 +293,7 @@ You can also change the image label:
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<configuration>
 					<image>
-						<name>dsyer/${project.artifactId}</name>
+						<name>localhost:5000/dsyer/${project.artifactId}</name>
 					</image>
 				</configuration>
 			</plugin>
@@ -308,6 +303,11 @@ You can also change the image label:
 ```
 
 ## The Bad Bits: Ingress
+
+> NOTE: If your cluster is "brand new" and doesn't have an ingress service you can add one like this:
+>
+>     $ kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/nginx-0.30.0/deploy/static/mandatory.yaml
+>     $ kubectl apply -f <(curl https://raw.githubusercontent.com/kubernetes/ingress-nginx/nginx-0.30.0/deploy/static/provider/baremetal/service-nodeport.yaml | sed -i -e '/  type:.*/d')
 
 [Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/) in Kubernetes refers to an API resource that defines how HTTP requests get routed to applications (or rather services). You can create rules based on hostname or URL paths. Example:
 
@@ -348,11 +348,6 @@ Hello World!!
 
 Having to add `Host:demo` to HTTP requests manually is kind of a pain. Normally you want to rely on default behaviour of HTTP clients (like browsers) and just `curl demo`. But that means you need DNS or `/etc/hosts` configuration and that's where it gets to be even more painful. DNS changes can take minutes or even hours to propagate, and `/etc/hosts` only works on your machine.
 
-> NOTE: If your cluster was "brand new" and didn't have an ingress service you can add it like this:
->
->     $ kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/nginx-0.30.0/deploy/static/mandatory.yaml
->     $ kubectl apply -f <(curl https://raw.githubusercontent.com/kubernetes/ingress-nginx/nginx-0.30.0/deploy/static/provider/baremetal/service-nodeport.yaml | sed -i -e '/  type:.*/d')
-
 ## The Bad Bits: Persistent Volumes
 
 How about an app with a database? Let's look at a PetClinic:
@@ -390,6 +385,12 @@ More issues with this PetClinic:
 
 * The database probably isn't fit for production use. It has a clear text password for instance.
 
+## The Bad Bits: Secrets
+
+Kubernetes has a [Secret](https://kubernetes.io/docs/concepts/configuration/secret/) feature built in, but everyone knows they are not encrypted, so not really secret. There are several approaches that work to encrypt secrets, but it's not standardized and it's hard to operationalize. We've been here before, so Vault and/or Credhub will probably end up being a solution.
+
+For high-end, super security-concious sites, you have to ensure that unencrypted data is never at rest, anywhere (including in an ephemeral file system in a container volume). Applications have to be able to decrypt secrets in-process, so Spring can help with that, but in practice only if users explicitly ask for it.
+
 ## A Different Approach to Boilerplate YAML
 
 Kubernetes is flexible and extensible. How about a CRD (Custom Resource Definition)? E.g. what if our demo manifest was just this:
@@ -407,7 +408,27 @@ That's actually all you need to know to create the 30-50 lines of YAML in the or
 
 This needs to be wired into the Kubernetes cluster. There's a prototype [here](https://github.com/dsyer/spring-boot-operator) and `Microservice` is also pretty similar to the [projectriff](https://github.com/projectriff/riff) resource called `Deployer`. Other implementations have also been seen on the internet.
 
-The prototype has a [PetClinic](https://github.com/dsyer/spring-boot-operator/blob/master/config/samples/petclinic.yaml) that you can deploy to get a feeling for the differences.
+The prototype has a [PetClinic](https://github.com/dsyer/spring-boot-operator/blob/master/config/samples/petclinic.yaml) that you can deploy to get a feeling for the differences. Here's the manifest:
+
+```yaml
+apiVersion: spring.io/v1
+kind: Microservice
+metadata:
+  name: petclinic
+spec:
+  image: dsyer/petclinic
+  bindings:
+  - services/mysql
+  template:
+    spec:
+      containers:
+      - name: app
+        env:
+        - name: MANAGEMENT_ENDPOINTS_WEB_BASEPATH
+          value: /actuator
+        - name: DATABASE
+          value: mysql
+```
 
 The danger with such abstractions is that they potentially close off areas that were formally verbose but flexible. Also, there is a problem with cognitive-saturation - too many CRDs means too many things to learn and too many to keep track of in your cluster.
 
@@ -438,8 +459,6 @@ The "target" for the Microservice could also be a Kubernetes selector (e.g. all 
 ```yaml
 apiVersion: skaffold/v2alpha3
 kind: Config
-metadata:
-  name: demo-app--
 build:
   artifacts:
   - image: localhost:5000/apps/demo
@@ -491,8 +510,6 @@ and then we can set up Skaffold like this:
 ```yaml
 apiVersion: skaffold/v2alpha4
 kind: Config
-metadata:
-  name: demo-app--
 build:
   artifacts:
   - image: localhost:5000/apps/demo
@@ -523,6 +540,9 @@ Add `spring-boot-devtools` to your project `pom.xml`:
 and make sure it gets added to the runtime image in (see `excludeDevtools`):
 
 ```xml
+	<properties>
+		<docker.image>localhost:5000/apps/${project.artifactId}</docker.image>
+	</properties>
 	<build>
 		<plugins>
 			<plugin>
@@ -544,8 +564,6 @@ Then in `skaffold.yaml` we can use changes in source files to sync to the runnin
 ```yaml
 apiVersion: skaffold/v2alpha4
 kind: Config
-metadata:
-  name: demo-app--
 build:
   artifacts:
   - image: localhost:5000/apps/demo

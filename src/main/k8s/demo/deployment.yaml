@@ -9,6 +9,8 @@ spec:
       - image: dsyer/demo
         name: demo
         env:
+        - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+          value: "*"
         - name: JAVA_OPTS
           value: -Dspring.main.lazy-initialization=true -noverify -XX:TieredStopAtLevel=1
 ---

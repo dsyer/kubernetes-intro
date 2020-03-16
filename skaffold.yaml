@@ -1,7 +1,5 @@
 apiVersion: skaffold/v2alpha4
 kind: Config
-metadata:
-  name: demo-app--
 build:
   artifacts:
   - image: localhost:5000/apps/demo
