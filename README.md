@@ -307,7 +307,7 @@ You can also change the image tag:
 > NOTE: If your cluster is "brand new" and doesn't have an ingress service you can add one like this:
 >
 >     $ kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/nginx-0.30.0/deploy/static/mandatory.yaml
->     $ kubectl apply -f <(curl https://raw.githubusercontent.com/kubernetes/ingress-nginx/nginx-0.30.0/deploy/static/provider/baremetal/service-nodeport.yaml | sed -i -e '/  type:.*/d')
+>     $ kubectl apply -f <(curl https://raw.githubusercontent.com/kubernetes/ingress-nginx/nginx-0.30.0/deploy/static/provider/baremetal/service-nodeport.yaml | sed -e '/  type:.*/d')
 
 [Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/) in Kubernetes refers to an API resource that defines how HTTP requests get routed to applications (or rather services). You can create rules based on hostname or URL paths. Example:
 
