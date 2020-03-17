@@ -231,6 +231,7 @@ kind: Deployment
 * Autoconfiguration of databases, message brokers, etc.
 * ? Support for actuators with Kubernetes API keys
 * Decryption of encrypted secrets in process (e.g. Spring Cloud Commons and Spring Cloud Vault)
+* \- Spring Cloud Kubernetes (direct access to Kubernetes API required for some features)
 
 To get a buildpack image, upgrade to Spring Boot 2.3 and run the plugin (`pom.xml`):
 
