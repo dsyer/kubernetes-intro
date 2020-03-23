@@ -1,13 +1,15 @@
 ## Pre-requisites
 
-If you can install [Nix](https://nixos.org/nix/) then do that and then just `nix-shell` on your command line to install all dependencies except Docker. If you can't do that, you will need to install them manually. Here's what it installs:
+You need Docker. If you can install [Nix](https://nixos.org/nix/) then do that and then just `nix-shell` on your command line to install all dependencies except Docker. If you can't do that, you will need to install them manually. Here's what it installs:
 
+* `jdk11`
+* `apacheHttpd` just to get the `ab` utility for load generation
 * `kind` (you might not need that if you can get hold of a Kubernetes cluster some other way)
 * `kubectl`
 * `kustomize`
 * `skaffold`
 
-There is a `kind-setup.sh` script that you might feel like using to set up a Kubernetes cluster and a Docker registry. And maybe an IDE would come in handy, but not mandatory (the `nix-shell` install VSCode and adds some useful extensions).
+There is also `kind-setup.sh` script that you might feel like using to set up a Kubernetes cluster and a Docker registry (`nix-shell` will run it automatically). Maybe an IDE would come in handy, but not mandatory (`nix-shell` installs VSCode and adds some useful extensions).
 
 ## Getting Started
 
