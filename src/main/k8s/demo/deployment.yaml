@@ -3,16 +3,22 @@ kind: Deployment
 metadata:
   name: app
 spec:
+  replicas: 2
   template:
     spec:
       containers:
       - image: dsyer/demo
-        name: demo
+        name: app
         env:
         - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
           value: "*"
         - name: JAVA_OPTS
           value: -Dspring.main.lazy-initialization=true -noverify -XX:TieredStopAtLevel=1
+        resources:
+          requests:
+            cpu: 200m
+          limits:
+            cpu: 500m
 ---
 apiVersion: v1
 kind: Service

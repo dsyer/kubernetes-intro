@@ -3,13 +3,9 @@ kind: Config
 build:
   artifacts:
   - image: localhost:5000/apps/demo
-    custom:
-      buildCommand: ./mvnw spring-boot:build-image -D docker.image=$IMAGE && docker push $IMAGE
-      dependencies:
-        paths:
-        - pom.xml
-        - src/main/resources
-        - target/classes
+#    custom:
+#      buildCommand: ./mvnw spring-boot:build-image -D docker.image=$IMAGE && docker push $IMAGE
+    docker: {}
     sync:
       manual:
       - src: "src/main/resources/**/*"

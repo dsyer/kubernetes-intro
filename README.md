@@ -227,9 +227,10 @@ kind: Deployment
 * \+ Buildpack support in `pom.xml` or `build.gradle`
 * Actuators (separate port or not?)
 * \+ Graceful shutdown
+* \+ Liveness and Readiness as first class features
+* ? Support for actuators with Kubernetes API keys
 * Loading `application.properties` and `application.yml`
 * Autoconfiguration of databases, message brokers, etc.
-* ? Support for actuators with Kubernetes API keys
 * Decryption of encrypted secrets in process (e.g. Spring Cloud Commons and Spring Cloud Vault)
 * \- Spring Cloud Kubernetes (direct access to Kubernetes API required for some features)
 
@@ -591,3 +592,78 @@ The key parts of this are the `custom.dependencies` and `sync.manual` fields. Th
 The effect is that if any `.java` or `.properties` files are changed, they are copied into the running container, and this causes Spring Boot to restart the app, usually quite quickly.
 
 > NOTE: You can use Skaffold and Maven "profiles" to keep the devtools stuff only at dev time. The production image can be built without the devtools dependency if the flag is inverted or the dependency is removed.
+
+## Metrics Server
+
+You need a [Metrics Server](https://github.com/kubernetes-sigs/metrics-server) to benefit from `kubectl top` and the [Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/). Kind doesn't support the metrics server [out of the box](https://github.com/kubernetes-sigs/kind/issues/398):
+
+```
+$ kubectl top pod
+W0323 08:01:25.173488   18448 top_pod.go:266] Metrics not available for pod default/app-5f969c594d-79s79, age: 65h4m54.173475197s
+error: Metrics not available for pod default/app-5f969c594d-79s79, age: 65h4m54.173475197s
+```
+
+But you _can_ install it using the manifests in the [source code](https://github.com/kubernetes-sigs/metrics-server/blob/master/deploy/kubernetes/) (or this [gist](https://gist.github.com/hjacobs/69b6844ba8442fcbc2007da316499eb4)). It is available here as well:
+
+```
+$ kubectl apply -f src/main/k8s/metrics
+$ kubectl top pod
+NAME                   CPU(cores)   MEMORY(bytes)   
+app-79fdc46f88-mjm5c   217m         143Mi  
+```
+
+> NOTE: You might need to recycle the application Pods to make them wake up to the metrics server.
+
+## Autoscaler
+
+First make sure you have a CPU request in your app container:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+spec:
+  template:
+    spec:
+      containers:
+...
+        resources:
+          requests:
+            cpu: 200m
+          limits:
+            cpu: 500m
+```
+
+And recycle the deployment (Skaffold will do it for you). Then add an autoscaler:
+
+```
+$ kubectl autoscale deployment app --min=1 --max=3
+$ kubectl get hpa
+NAME   REFERENCE        TARGETS         MINPODS   MAXPODS   REPLICAS   AGE
+app    Deployment/app   5%/80%          1         3         1          9s
+```
+
+Hit the enspoints hard with (e.g.) Apache Bench:
+
+```
+$ ab -c 100 -n 10000 http://localhost:4503/actuator/
+```
+
+and you should see it scale up:
+
+```
+$ kubectl get hpa
+NAME   REFERENCE        TARGETS         MINPODS   MAXPODS   REPLICAS   AGE
+app    Deployment/app   112%/80%        1         3         2          7m25s
+```
+
+and then back down:
+
+```
+$ kubectl get hpa
+NAME   REFERENCE        TARGETS         MINPODS   MAXPODS   REPLICAS   AGE
+app    Deployment/app   5%/80%          1         3         1          20m
+```
+
+> NOTE: If you update the app and it restarts or redeploys, the CPU activity on startup can trigger an autoscale up. Kind of nuts. It's potentially a thundering herd.

@@ -10,6 +10,7 @@ in buildEnv {
   name = "env";
   paths = [
     jdk11
+    apacheHttpd
     kind
     kubectl
     kustomize

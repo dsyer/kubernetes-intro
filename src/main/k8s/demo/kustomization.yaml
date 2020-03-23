@@ -7,4 +7,5 @@ images:
     newName: localhost:5000/apps/demo
 resources:
 - deployment.yaml
-- ingress.yaml
+transformers:
+- github.com/dsyer/docker-services/layers/actuator
