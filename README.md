@@ -669,3 +669,26 @@ app    Deployment/app   5%/80%          1         3         1          20m
 ```
 
 > NOTE: If you update the app and it restarts or redeploys, the CPU activity on startup can trigger an autoscale up. Kind of nuts. It's potentially a thundering herd.
+
+The `kubectl autoscale` command generates a manifest for the "hpa" something like this:
+
+```yaml
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: app
+spec:
+  maxReplicas: 3
+  metrics:
+  - resource:
+      name: cpu
+      target:
+        averageUtilization: 80
+        type: Utilization
+    type: Resource
+  minReplicas: 1
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: app
+```
