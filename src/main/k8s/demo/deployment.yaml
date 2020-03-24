@@ -14,6 +14,10 @@ spec:
           value: "*"
         - name: JAVA_OPTS
           value: -Dspring.main.lazy-initialization=true -noverify -XX:TieredStopAtLevel=1
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
         resources:
           requests:
             cpu: 200m
@@ -42,7 +46,7 @@ spec:
   - resource:
       name: cpu
       target:
-        averageUtilization: 50
+        averageUtilization: 10
         type: Utilization
     type: Resource
   minReplicas: 1
