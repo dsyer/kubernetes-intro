@@ -17,4 +17,4 @@ build:
 deploy:
   kustomize:
     paths: 
-    - "src/main/k8s/demo/"
+    - "src/k8s/demo/"

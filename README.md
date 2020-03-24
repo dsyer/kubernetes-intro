@@ -88,11 +88,11 @@ Hello World
 ## Organize with Kustomize
 
 ```
-$ mkdir -p src/main/k8s/demo
-$ mv deployment.yaml src/main/k8s/demo
+$ mkdir -p src/k8s/demo
+$ mv deployment.yaml src/k8s/demo
 ```
 
-Create `src/main/k8s/demo/kustomization.yaml`:
+Create `src/k8s/demo/kustomization.yaml`:
 
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -104,8 +104,8 @@ resources:
 Apply the new manifest (which is so far just the same):
 
 ```
-$ kubectl delete src/main/k8s/demo/deployment.yaml
-$ kubectl apply -k src/main/k8s/demo/
+$ kubectl delete src/k8s/demo/deployment.yaml
+$ kubectl apply -k src/k8s/demo/
 service/demo created
 deployment.apps/demo created
 ```
@@ -150,7 +150,7 @@ resources:
 Maybe switch to `kustomize` on the command line (to pick up latest version, although at this stage it doesn't matter):
 
 ```
-$ kubectl apply -f <(kustomize build src/main/k8s/demo)
+$ kubectl apply -f <(kustomize build src/k8s/demo)
 ```
 
 ## Modularize
@@ -158,7 +158,7 @@ $ kubectl apply -f <(kustomize build src/main/k8s/demo)
 Delete the current deployment:
 
 ```
-$ kubectl delete -f src/main/k8s/demo/deployment.yaml
+$ kubectl delete -f src/k8s/demo/deployment.yaml
 ```
 
 and then remove `deployment.yaml` and replace the reference to it in the kustomization with an example from a library, adding also an image replacement:
@@ -178,7 +178,7 @@ resources:
 Deploy again:
 
 ```
-$ kubectl apply -f <(kustomize build src/main/k8s/demo/)
+$ kubectl apply -f <(kustomize build src/k8s/demo/)
 configmap/env-config created
 service/app created
 deployment.apps/app created
@@ -197,7 +197,7 @@ transformers:
 Deploy it:
 
 ```
-$ kubectl apply -f <(kustomize build src/main/k8s/demo/)
+$ kubectl apply -f <(kustomize build src/k8s/demo/)
 configmap/env-config unchanged
 service/app unchanged
 deployment.apps/app configured
@@ -336,7 +336,7 @@ spec:
 Apply this YAML and check the status:
 
 ```
-$ kubectl apply -f src/main/k8s/demo/ingress.yaml
+$ kubectl apply -f src/k8s/demo/ingress.yaml
 $ kubectl get ingress
 NAME      HOSTS   ADDRESS       PORTS   AGE
 ingress   demo    10.103.4.16   80      2m15s
@@ -470,7 +470,7 @@ build:
 deploy:
   kustomize:
     paths: 
-    - "src/main/k8s/demo/"
+    - "src/k8s/demo/"
 ```
 
 Start the app:
@@ -526,7 +526,7 @@ build:
 deploy:
   kustomize:
     paths: 
-    - "src/main/k8s/demo/"
+    - "src/k8s/demo/"
 ```
 
 ## Hot Reload in Skaffold with Spring Boot Devtools
@@ -608,7 +608,7 @@ error: Metrics not available for pod default/app-5f969c594d-79s79, age: 65h4m54.
 But you _can_ install it using the manifests in the [source code](https://github.com/kubernetes-sigs/metrics-server/blob/master/deploy/kubernetes/) (or this [gist](https://gist.github.com/hjacobs/69b6844ba8442fcbc2007da316499eb4)). It is available here as well:
 
 ```
-$ kubectl apply -f src/main/k8s/metrics
+$ kubectl apply -f src/k8s/metrics
 $ kubectl top pod
 NAME                   CPU(cores)   MEMORY(bytes)   
 app-79fdc46f88-mjm5c   217m         143Mi  
@@ -646,7 +646,7 @@ NAME   REFERENCE        TARGETS         MINPODS   MAXPODS   REPLICAS   AGE
 app    Deployment/app   5%/80%          1         3         1          9s
 ```
 
-Hit the enspoints hard with (e.g.) Apache Bench:
+Hit the endpoints hard with (e.g.) Apache Bench:
 
 ```
 $ ab -c 100 -n 10000 http://localhost:4503/actuator/
