@@ -2,12 +2,12 @@
 
 You need Docker. If you can install [Nix](https://nixos.org/nix/) then do that and then just `nix-shell` on your command line to install all dependencies except Docker. If you can't do that, you will need to install them manually. Here's what it installs:
 
-* `jdk11`
-* `apacheHttpd` just to get the `ab` utility for load generation
-* `kind` (you might not need that if you can get hold of a Kubernetes cluster some other way)
-* `kubectl`
-* `kustomize`
-* `skaffold`
+- `jdk11`
+- `apacheHttpd` just to get the `ab` utility for load generation
+- `kind` (you might not need that if you can get hold of a Kubernetes cluster some other way)
+- `kubectl`
+- `kustomize`
+- `skaffold`
 
 There is also `kind-setup.sh` script that you might feel like using to set up a Kubernetes cluster and a Docker registry (`nix-shell` will run it automatically). Maybe an IDE would come in handy, but not mandatory (`nix-shell` installs VSCode and adds some useful extensions).
 
@@ -98,7 +98,7 @@ Create `src/k8s/demo/kustomization.yaml`:
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-- deployment.yaml
+  - deployment.yaml
 ```
 
 Apply the new manifest (which is so far just the same):
@@ -121,8 +121,8 @@ spec:
   template:
     spec:
       containers:
-      - image: localhost:5000/dsyer/demo
-        name: demo
+        - image: localhost:5000/dsyer/demo
+          name: demo
 ---
 apiVersion: v1
 kind: Service
@@ -130,10 +130,10 @@ metadata:
   name: demo
 spec:
   ports:
-  - name: 80-8080
-    port: 80
-    protocol: TCP
-    targetPort: 8080
+    - name: 80-8080
+      port: 80
+      protocol: TCP
+      targetPort: 8080
 ```
 
 Add labels to the kustomization:
@@ -144,7 +144,7 @@ kind: Kustomization
 commonLabels:
   app: app
 resources:
-- deployment.yaml
+  - deployment.yaml
 ```
 
 Maybe switch to `kustomize` on the command line (to pick up latest version, although at this stage it doesn't matter):
@@ -172,7 +172,7 @@ images:
   - name: dsyer/template
     newName: localhost:5000/dsyer/demo
 resources:
-- github.com/dsyer/docker-services/layers/base
+  - github.com/dsyer/docker-services/layers/base
 ```
 
 Deploy again:
@@ -189,7 +189,7 @@ You can also add features from the library as patches. E.g. tell Kubernetes that
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-...
+---
 transformers:
   - github.com/dsyer/docker-services/layers/actuator
 ```
@@ -208,33 +208,33 @@ Something changed in the deployment (liveness and readiness probes):
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
-...
-        livenessProbe:
-          httpGet:
-            path: /actuator/info
-            port: 8080
-          initialDelaySeconds: 10
-          periodSeconds: 3
-        name: app
-        readinessProbe:
-          httpGet:
-            path: /actuator/health
-            port: 8080
-          initialDelaySeconds: 20
-          periodSeconds: 10
+---
+livenessProbe:
+  httpGet:
+    path: /actuator/info
+    port: 8080
+  initialDelaySeconds: 10
+  periodSeconds: 3
+name: app
+readinessProbe:
+  httpGet:
+    path: /actuator/health
+    port: 8080
+  initialDelaySeconds: 20
+  periodSeconds: 10
 ```
 
 ## Spring Boot Features
 
-* \+ Buildpack support in `pom.xml` or `build.gradle`
-* Actuators (separate port or not?)
-* \+ Graceful shutdown
-* \+ Liveness and Readiness as first class features
-* ? Support for actuators with Kubernetes API keys
-* Loading `application.properties` and `application.yml`
-* Autoconfiguration of databases, message brokers, etc.
-* Decryption of encrypted secrets in process (e.g. Spring Cloud Commons and Spring Cloud Vault)
-* \- Spring Cloud Kubernetes (direct access to Kubernetes API required for some features)
+- \+ Buildpack support in `pom.xml` or `build.gradle`
+- Actuators (separate port or not?)
+- \+ Graceful shutdown
+- \+ Liveness and Readiness as first class features
+- ? Support for actuators with Kubernetes API keys
+- Loading `application.properties` and `application.yml`
+- Autoconfiguration of databases, message brokers, etc.
+- Decryption of encrypted secrets in process (e.g. Spring Cloud Commons and Spring Cloud Vault)
+- \- Spring Cloud Kubernetes (direct access to Kubernetes API required for some features)
 
 To get a buildpack image, upgrade to Spring Boot 2.3 and run the plugin (`pom.xml`):
 
@@ -246,7 +246,7 @@ To get a buildpack image, upgrade to Spring Boot 2.3 and run the plugin (`pom.xm
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>2.3.0.M3</version>
+		<version>2.3.0.M4</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 ...
@@ -272,7 +272,7 @@ To get a buildpack image, upgrade to Spring Boot 2.3 and run the plugin (`pom.xm
 $ ./mvnw spring-boot:build-image
 ...
 [INFO] Successfully built image 'docker.io/library/demo:0.0.1-SNAPSHOT'
-[INFO] 
+[INFO]
 [INFO] ------------------------------------------------------------------------
 [INFO] BUILD SUCCESS
 [INFO] ------------------------------------------------------------------------
@@ -285,24 +285,15 @@ Calculated JVM Memory Configuration: -XX:MaxDirectMemorySize=10M -XX:MaxMetaspac
 
 > NOTE: The CF memory calculator is used at runtime to size the JVM to fit the container.
 
-You can also change the image tag:
+You can also change the image tag (in `pom.xml` or on the command line with `-D`):
 
 ```xml
 <project>
     ...
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.springframework.boot</groupId>
-				<artifactId>spring-boot-maven-plugin</artifactId>
-				<configuration>
-					<image>
-						<name>localhost:5000/dsyer/${project.artifactId}</name>
-					</image>
-				</configuration>
-			</plugin>
-		</plugins>
-	</build>
+	<properties>
+		<java.version>1.8</java.version>
+		<spring-boot.build-image.imageName>localhost:5000/apps/${project.artifactId}</spring-boot.build-image.imageName>
+	</properties>
 </project>
 ```
 
@@ -324,13 +315,13 @@ metadata:
     kubernetes.io/ingress.class: "nginx"
 spec:
   rules:
-  - host: demo
-    http:
-      paths:
-        - path: /
-          backend:
-            serviceName: app
-            servicePort: 80
+    - host: demo
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: app
+              servicePort: 80
 ```
 
 Apply this YAML and check the status:
@@ -385,9 +376,9 @@ All perfectly fine, so what is the problem? The PVC is "Bound", which means ther
 
 More issues with this PetClinic:
 
-* The database is tied to the app, all wrapped up in the same manifest. It's great for getting started and getting something running, but it won't be structured like that in production.
+- The database is tied to the app, all wrapped up in the same manifest. It's great for getting started and getting something running, but it won't be structured like that in production.
 
-* The database probably isn't fit for production use. It has a clear text password for instance.
+- The database probably isn't fit for production use. It has a clear text password for instance.
 
 ## The Bad Bits: Secrets
 
@@ -422,16 +413,16 @@ metadata:
 spec:
   image: dsyer/petclinic
   bindings:
-  - services/mysql
+    - services/mysql
   template:
     spec:
       containers:
-      - name: app
-        env:
-        - name: MANAGEMENT_ENDPOINTS_WEB_BASEPATH
-          value: /actuator
-        - name: DATABASE
-          value: mysql
+        - name: app
+          env:
+            - name: MANAGEMENT_ENDPOINTS_WEB_BASEPATH
+              value: /actuator
+            - name: DATABASE
+              value: mysql
 ```
 
 The danger with such abstractions is that they potentially close off areas that were formally verbose but flexible. Also, there is a problem with cognitive-saturation - too many CRDs means too many things to learn and too many to keep track of in your cluster.
@@ -458,19 +449,19 @@ The "target" for the Microservice could also be a Kubernetes selector (e.g. all 
 
 ## Developer Experience with Skaffold
 
-[Skaffold](https://skaffold.dev) is a tool from Google that helps reduce toil for the change-build-test cycle including deploying to Kubernetes.  We can start with a really simple Docker based build (in `skaffold.yaml`):
+[Skaffold](https://skaffold.dev) is a tool from Google that helps reduce toil for the change-build-test cycle including deploying to Kubernetes. We can start with a really simple Docker based build (in `skaffold.yaml`):
 
 ```yaml
 apiVersion: skaffold/v2alpha3
 kind: Config
 build:
   artifacts:
-  - image: localhost:5000/apps/demo
-    docker: {}
+    - image: localhost:5000/apps/demo
+      docker: {}
 deploy:
   kustomize:
-    paths: 
-    - "src/k8s/demo/"
+    paths:
+      - "src/k8s/demo/"
 ```
 
 Start the app:
@@ -487,46 +478,24 @@ You can test that the app is running on port 4503. Because of the way we defined
 
 ## Using Spring Boot Docker Images with Skaffold
 
-Skaffold has a custom builder option, so we can use that to hook in the buildpack support. First we need to make the image name a parameter of the build (in `pom.xml`):
-
-```xml
-<properties>
-	<java.version>1.8</java.version>
-	<docker.image>localhost:5000/apps/${project.artifactId}</docker.image>
-</properties>
-<build>
-	<plugins>
-		<plugin>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-maven-plugin</artifactId>
-			<configuration>
-				<image>
-					<name>${docker.image}</name>
-				</image>
-			</configuration>
-		</plugin>
-	</plugins>
-</build>
-```
-
-and then we can set up Skaffold like this:
+Skaffold has a custom builder option, so we can use that to hook in the buildpack support:
 
 ```yaml
 apiVersion: skaffold/v2alpha4
 kind: Config
 build:
   artifacts:
-  - image: localhost:5000/apps/demo
-    custom:
-      buildCommand: ./mvnw spring-boot:build-image -D docker.image=$IMAGE && docker push $IMAGE
-      dependencies:
-        paths:
-        - src
-        - pom.xml
+    - image: localhost:5000/apps/demo
+      custom:
+        buildCommand: ./mvnw spring-boot:build-image -D spring-boot.build-image.imageName=$IMAGE && docker push $IMAGE
+        dependencies:
+          paths:
+            - src
+            - pom.xml
 deploy:
   kustomize:
-    paths: 
-    - "src/k8s/demo/"
+    paths:
+      - "src/k8s/demo/"
 ```
 
 ## Hot Reload in Skaffold with Spring Boot Devtools
@@ -545,22 +514,8 @@ and make sure it gets added to the runtime image in (see `excludeDevtools`):
 
 ```xml
 	<properties>
-		<docker.image>localhost:5000/apps/${project.artifactId}</docker.image>
+		<spring-boot.repackage.excludeDevtools>false</spring-boot.repackage.excludeDevtools>
 	</properties>
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.springframework.boot</groupId>
-				<artifactId>spring-boot-maven-plugin</artifactId>
-				<configuration>
-					<excludeDevtools>false</excludeDevtools>
-					<image>
-						<name>${docker.image}</name>
-					</image>
-				</configuration>
-			</plugin>
-		</plugins>
-	</build>
 ```
 
 Then in `skaffold.yaml` we can use changes in source files to sync to the running container instead of doing a full rebuild:
@@ -570,23 +525,22 @@ apiVersion: skaffold/v2alpha4
 kind: Config
 build:
   artifacts:
-  - image: localhost:5000/apps/demo
-    custom:
-      buildCommand: ./mvnw spring-boot:build-image -D docker.image=$IMAGE && docker push $IMAGE
-      dependencies:
-        paths:
-        - pom.xml
-        - src/main/resources
-        - target/classes
-    sync:
-      manual:
-      - src: "src/main/resources/**/*"
-        dest: /workspace/BOOT-INF/classes
-        strip: src/main/resources/
-      - src: "target/classes/**/*"
-        dest: /workspace/BOOT-INF/classes
-        strip: target/classes/
-...
+    - image: localhost:5000/apps/demo
+      custom:
+        buildCommand: ./mvnw spring-boot:build-image -D spring-boot.build-image.imageName=$IMAGE && docker push $IMAGE
+        dependencies:
+          paths:
+            - pom.xml
+            - src/main/resources
+            - target/classes
+      sync:
+        manual:
+          - src: "src/main/resources/**/*"
+            dest: /workspace/BOOT-INF/classes
+            strip: src/main/resources/
+          - src: "target/classes/**/*"
+            dest: /workspace/BOOT-INF/classes
+            strip: target/classes/
 ```
 
 The key parts of this are the `custom.dependencies` and `sync.manual` fields. They have to match - i.e. no files are copied into the running container from `sync` if they don't appear also in `dependencies`.
@@ -610,8 +564,8 @@ But you _can_ install it using the manifests in the [source code](https://github
 ```
 $ kubectl apply -f src/k8s/metrics
 $ kubectl top pod
-NAME                   CPU(cores)   MEMORY(bytes)   
-app-79fdc46f88-mjm5c   217m         143Mi  
+NAME                   CPU(cores)   MEMORY(bytes)
+app-79fdc46f88-mjm5c   217m         143Mi
 ```
 
 > NOTE: You might need to recycle the application Pods to make them wake up to the metrics server.
@@ -629,12 +583,12 @@ spec:
   template:
     spec:
       containers:
-...
-        resources:
-          requests:
-            cpu: 200m
-          limits:
-            cpu: 500m
+---
+resources:
+  requests:
+    cpu: 200m
+  limits:
+    cpu: 500m
 ```
 
 And recycle the deployment (Skaffold will do it for you). Then add an autoscaler:
@@ -680,12 +634,12 @@ metadata:
 spec:
   maxReplicas: 3
   metrics:
-  - resource:
-      name: cpu
-      target:
-        averageUtilization: 80
-        type: Utilization
-    type: Resource
+    - resource:
+        name: cpu
+        target:
+          averageUtilization: 80
+          type: Utilization
+      type: Resource
   minReplicas: 1
   scaleTargetRef:
     apiVersion: apps/v1

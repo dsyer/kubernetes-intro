@@ -2,19 +2,23 @@ apiVersion: skaffold/v2alpha4
 kind: Config
 build:
   artifacts:
-  - image: localhost:5000/apps/demo
-#    custom:
-#      buildCommand: ./mvnw spring-boot:build-image -D docker.image=$IMAGE && docker push $IMAGE
-    docker: {}
-    sync:
-      manual:
-      - src: "src/main/resources/**/*"
-        dest: /workspace/BOOT-INF/classes
-        strip: src/main/resources/
-      - src: "target/classes/**/*"
-        dest: /workspace/BOOT-INF/classes
-        strip: target/classes/
+    - image: localhost:5000/apps/demo
+      custom:
+        buildCommand: ./mvnw spring-boot:build-image -D spring-boot.build-image.imageName=$IMAGE && docker push $IMAGE
+        dependencies:
+          paths:
+            - pom.xml
+            - src/main/resources
+            - target/classes
+      sync:
+        manual:
+          - src: "src/main/resources/**/*"
+            dest: /workspace/BOOT-INF/classes
+            strip: src/main/resources/
+          - src: "target/classes/**/*"
+            dest: /workspace/BOOT-INF/classes
+            strip: target/classes/
 deploy:
   kustomize:
-    paths: 
-    - "src/k8s/demo/"
+    paths:
+      - "src/k8s/demo/"
