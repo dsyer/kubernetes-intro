@@ -1,11 +1,10 @@
-with import <nixpkgs> {};
+with import <nixpkgs> { };
 let
-  # ~/.nix-defexpr/channels/nixpkgs/pkgs/misc/vscode-extensions/update_installed_exts.sh | tee nix/extensions.nix
-  extensions = pkgs.vscode-utils.extensionsFromVscodeMarketplace (import ./nix/extensions.nix).extensions;
-  vscode-with-extensions = pkgs.vscode-with-extensions.override {
-    vscodeExtensions = extensions;
-  };
-in pkgs.mkShell {
+  extensions = vscode-utils.extensionsFromVscodeMarketplace
+    (import ./nix/extensions.nix).extensions;
+  vscode-with-extensions =
+    pkgs.vscode-with-extensions.override { vscodeExtensions = extensions; };
+in mkShell {
   name = "env";
   buildInputs = [
     (import ./default.nix { inherit pkgs; })
@@ -16,5 +15,5 @@ in pkgs.mkShell {
     figlet ":smile:"
     kind-setup
     kubectl get all
-'';
-} 
+  '';
+}
