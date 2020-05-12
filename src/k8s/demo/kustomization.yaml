@@ -3,7 +3,7 @@ kind: Kustomization
 commonLabels:
   app: app
 images:
-  - name: dsyer/demo
+  - name: apps/demo
     newName: localhost:5000/apps/demo
 resources:
 - deployment.yaml

@@ -59,8 +59,8 @@ Run and test...
 
 ```
 $ ./mvnw package
-$ docker build -t localhost:5000/dsyer/demo .
-$ docker run -p 8080:8080 localhost:5000/dsyer/demo
+$ docker build -t localhost:5000/apps/demo .
+$ docker run -p 8080:8080 localhost:5000/apps/demo
 $ curl localhost:8080
 Hello World
 ```
@@ -70,8 +70,8 @@ Hello World
 Create a basic manifest:
 
 ```
-$ docker push localhost:5000/dsyer/demo
-$ kubectl create deployment demo --image=localhost:5000/dsyer/demo --dry-run -o=yaml > deployment.yaml
+$ docker push localhost:5000/apps/demo
+$ kubectl create deployment demo --image=localhost:5000/apps/demo --dry-run -o=yaml > deployment.yaml
 $ echo --- >> deployment.yaml
 $ kubectl create service clusterip demo --tcp=80:8080 --dry-run -o=yaml >> deployment.yaml
 ```
@@ -104,7 +104,7 @@ resources:
 Apply the new manifest (which is so far just the same):
 
 ```
-$ kubectl delete src/k8s/demo/deployment.yaml
+$ kubectl delete -f src/k8s/demo/deployment.yaml
 $ kubectl apply -k src/k8s/demo/
 service/demo created
 deployment.apps/demo created
@@ -121,7 +121,7 @@ spec:
   template:
     spec:
       containers:
-        - image: localhost:5000/dsyer/demo
+        - image: localhost:5000/apps/demo
           name: demo
 ---
 apiVersion: v1
@@ -170,7 +170,7 @@ commonLabels:
   app: app
 images:
   - name: dsyer/template
-    newName: localhost:5000/dsyer/demo
+    newName: localhost:5000/apps/demo
 resources:
   - github.com/dsyer/docker-services/layers/base
 ```
@@ -224,6 +224,35 @@ readinessProbe:
   periodSeconds: 10
 ```
 
+## Developer Experience with Skaffold
+
+[Skaffold](https://skaffold.dev) is a tool from Google that helps reduce toil for the change-build-test cycle including deploying to Kubernetes. We can start with a really simple Docker based build (in `skaffold.yaml`):
+
+```yaml
+apiVersion: skaffold/v2alpha3
+kind: Config
+build:
+  artifacts:
+    - image: localhost:5000/apps/demo
+      docker: {}
+deploy:
+  kustomize:
+    paths:
+      - "src/k8s/demo/"
+```
+
+Start the app:
+
+```
+$ skaffold dev --port-forward
+...
+Watching for changes...
+Port forwarding service/app in namespace default, remote port 80 -> address 127.0.0.1 port 4503
+...
+```
+
+You can test that the app is running on port 4503. Because of the way we defined our `Dockerfile`, it is watching for changes in the jar file. So we can make as many changes as we want to the source code and they only get deployed if we rebuild the jar.
+
 ## Spring Boot Features
 
 - \+ Buildpack support in `pom.xml` or `build.gradle`
@@ -234,7 +263,7 @@ readinessProbe:
 - Loading `application.properties` and `application.yml`
 - Autoconfiguration of databases, message brokers, etc.
 - Decryption of encrypted secrets in process (e.g. Spring Cloud Commons and Spring Cloud Vault)
-- \- Spring Cloud Kubernetes (direct access to Kubernetes API required for some features)
+- Spring Cloud Kubernetes (direct access to Kubernetes API required for some features)
 
 To get a buildpack image, upgrade to Spring Boot 2.3 and run the plugin (`pom.xml`):
 
@@ -246,7 +275,7 @@ To get a buildpack image, upgrade to Spring Boot 2.3 and run the plugin (`pom.xm
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>2.3.0.M4</version>
+		<version>2.3.0.RC1</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 ...
@@ -296,6 +325,86 @@ You can also change the image tag (in `pom.xml` or on the command line with `-D`
 	</properties>
 </project>
 ```
+
+## Using Spring Boot Docker Images with Skaffold
+
+Skaffold has a custom builder option, so we can use that to hook in the buildpack support:
+
+```yaml
+apiVersion: skaffold/v2alpha4
+kind: Config
+build:
+  artifacts:
+    - image: localhost:5000/apps/demo
+      custom:
+        buildCommand: ./mvnw spring-boot:build-image -D spring-boot.build-image.imageName=$IMAGE && docker push $IMAGE
+        dependencies:
+          paths:
+            - src
+            - pom.xml
+deploy:
+  kustomize:
+    paths:
+      - "src/k8s/demo/"
+```
+
+## Hot Reload in Skaffold with Spring Boot Devtools
+
+Add `spring-boot-devtools` to your project `pom.xml`:
+
+```xml
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-devtools</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+```
+
+and make sure it gets added to the runtime image in (see `excludeDevtools`):
+
+```xml
+	<properties>
+		<spring-boot.repackage.excludeDevtools>false</spring-boot.repackage.excludeDevtools>
+	</properties>
+```
+
+Then in `skaffold.yaml` we can use changes in source files to sync to the running container instead of doing a full rebuild:
+
+```yaml
+apiVersion: skaffold/v2alpha4
+kind: Config
+build:
+  artifacts:
+    - image: localhost:5000/apps/demo
+      custom:
+        buildCommand: docker build -t $IMAGE . && docker push $IMAGE
+        dependencies:
+          paths:
+            - pom.xml
+            - src/main/resources
+            - target/classes
+            - Dockerfile
+      sync:
+        manual:
+          - src: "src/main/resources/**/*"
+            dest: /workspace/app
+            strip: src/main/resources/
+          - src: "target/classes/**/*"
+            dest: /workspace/app
+            strip: target/classes/
+deploy:
+  kustomize:
+    paths:
+      - "src/k8s/demo/"
+```
+
+The key parts of this are the `custom.dependencies` and `sync.manual` fields. They have to match - i.e. no files are copied into the running container from `sync` if they don't appear also in `dependencies`.
+
+The effect is that if any `.java` or `.properties` files are changed, they are copied into the running container, and this causes Spring Boot to restart the app, usually quite quickly.
+
+> NOTE: You can use Skaffold and Maven "profiles" to keep the devtools stuff only at dev time. The production image can be built without the devtools dependency if the flag is inverted or the dependency is removed.
+
+> NOTE: You can't currently use Skaffold to trigger a restart in Dev Tools when you build the image using Spring Boot tools because the buildpack runs the app using a `JarLauncher` (from an exploded archive), and Spring Boot thinks that means you don't want to restart when files change.
 
 ## The Bad Bits: Ingress
 
@@ -396,7 +505,7 @@ kind: Microservice
 metadata:
   name: demo
 spec:
-  image: localhost:5000/dsyer/demo
+  image: localhost:5000/apps/demo
 ```
 
 That's actually all you need to know to create the 30-50 lines of YAML in the original sample. The idea is to expand it in cluster and create the service, deployment (ingress, etc.) automatically. Kubernetes also ties those resources to the "microservice" and does garbage collection - if you delete the parent resource they all get deleted. There are other benefits to having an abstraction that is visible in the Kubernetes API.
@@ -446,108 +555,6 @@ spec:
 The "opinions" about what to inject into the "demo" deployment could be located in the Microservice controller. It can look at the metadata in the container image and add probes that match the dependencies - if actuator is present use `/actuator/info`. If there is no metadata in the container the manifest can list opinions explicitly.
 
 The "target" for the Microservice could also be a Kubernetes selector (e.g. all deployments with a specific label).
-
-## Developer Experience with Skaffold
-
-[Skaffold](https://skaffold.dev) is a tool from Google that helps reduce toil for the change-build-test cycle including deploying to Kubernetes. We can start with a really simple Docker based build (in `skaffold.yaml`):
-
-```yaml
-apiVersion: skaffold/v2alpha3
-kind: Config
-build:
-  artifacts:
-    - image: localhost:5000/apps/demo
-      docker: {}
-deploy:
-  kustomize:
-    paths:
-      - "src/k8s/demo/"
-```
-
-Start the app:
-
-```
-$ skaffold dev --port-forward
-...
-Watching for changes...
-Port forwarding service/app in namespace default, remote port 80 -> address 127.0.0.1 port 4503
-...
-```
-
-You can test that the app is running on port 4503. Because of the way we defined our `Dockerfile`, it is watching for changes in the jar file. So we can make as many changes as we want to the source code and they only get deployed if we rebuild the jar.
-
-## Using Spring Boot Docker Images with Skaffold
-
-Skaffold has a custom builder option, so we can use that to hook in the buildpack support:
-
-```yaml
-apiVersion: skaffold/v2alpha4
-kind: Config
-build:
-  artifacts:
-    - image: localhost:5000/apps/demo
-      custom:
-        buildCommand: ./mvnw spring-boot:build-image -D spring-boot.build-image.imageName=$IMAGE && docker push $IMAGE
-        dependencies:
-          paths:
-            - src
-            - pom.xml
-deploy:
-  kustomize:
-    paths:
-      - "src/k8s/demo/"
-```
-
-## Hot Reload in Skaffold with Spring Boot Devtools
-
-Add `spring-boot-devtools` to your project `pom.xml`:
-
-```xml
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-devtools</artifactId>
-      <scope>runtime</scope>
-    </dependency>
-```
-
-and make sure it gets added to the runtime image in (see `excludeDevtools`):
-
-```xml
-	<properties>
-		<spring-boot.repackage.excludeDevtools>false</spring-boot.repackage.excludeDevtools>
-	</properties>
-```
-
-Then in `skaffold.yaml` we can use changes in source files to sync to the running container instead of doing a full rebuild:
-
-```yaml
-apiVersion: skaffold/v2alpha4
-kind: Config
-build:
-  artifacts:
-    - image: localhost:5000/apps/demo
-      custom:
-        buildCommand: ./mvnw spring-boot:build-image -D spring-boot.build-image.imageName=$IMAGE && docker push $IMAGE
-        dependencies:
-          paths:
-            - pom.xml
-            - src/main/resources
-            - target/classes
-      sync:
-        manual:
-          - src: "src/main/resources/**/*"
-            dest: /workspace/BOOT-INF/classes
-            strip: src/main/resources/
-          - src: "target/classes/**/*"
-            dest: /workspace/BOOT-INF/classes
-            strip: target/classes/
-```
-
-The key parts of this are the `custom.dependencies` and `sync.manual` fields. They have to match - i.e. no files are copied into the running container from `sync` if they don't appear also in `dependencies`.
-
-The effect is that if any `.java` or `.properties` files are changed, they are copied into the running container, and this causes Spring Boot to restart the app, usually quite quickly.
-
-> NOTE: You can use Skaffold and Maven "profiles" to keep the devtools stuff only at dev time. The production image can be built without the devtools dependency if the flag is inverted or the dependency is removed.
 
 ## Metrics Server
 

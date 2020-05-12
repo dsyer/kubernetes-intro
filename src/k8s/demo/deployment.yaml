@@ -7,7 +7,7 @@ spec:
   template:
     spec:
       containers:
-      - image: dsyer/demo
+      - image: apps/demo
         name: app
         env:
         - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
