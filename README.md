@@ -88,11 +88,11 @@ Hello World
 ## Organize with Kustomize
 
 ```
-$ mkdir -p src/k8s/demo
-$ mv deployment.yaml src/k8s/demo
+$ mkdir -p k8s
+$ mv deployment.yaml k8s
 ```
 
-Create `src/k8s/demo/kustomization.yaml`:
+Create `k8s/kustomization.yaml`:
 
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -104,8 +104,8 @@ resources:
 Apply the new manifest (which is so far just the same):
 
 ```
-$ kubectl delete -f src/k8s/demo/deployment.yaml
-$ kubectl apply -k src/k8s/demo/
+$ kubectl delete -f k8s/deployment.yaml
+$ kubectl apply -k k8s/
 service/demo created
 deployment.apps/demo created
 ```
@@ -150,7 +150,7 @@ resources:
 Maybe switch to `kustomize` on the command line (to pick up latest version, although at this stage it doesn't matter):
 
 ```
-$ kubectl apply -f <(kustomize build src/k8s/demo)
+$ kubectl apply -f <(kustomize build k8s)
 ```
 
 ## Modularize
@@ -158,7 +158,7 @@ $ kubectl apply -f <(kustomize build src/k8s/demo)
 Delete the current deployment:
 
 ```
-$ kubectl delete -f src/k8s/demo/deployment.yaml
+$ kubectl delete -f k8s/deployment.yaml
 ```
 
 and then remove `deployment.yaml` and replace the reference to it in the kustomization with an example from a library, adding also an image replacement:
@@ -178,7 +178,7 @@ resources:
 Deploy again:
 
 ```
-$ kubectl apply -f <(kustomize build src/k8s/demo/)
+$ kubectl apply -f <(kustomize build k8s/)
 configmap/env-config created
 service/app created
 deployment.apps/app created
@@ -189,7 +189,7 @@ You can also add features from the library as patches. E.g. tell Kubernetes that
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
----
+...
 transformers:
   - github.com/dsyer/docker-services/layers/actuator
 ```
@@ -197,7 +197,7 @@ transformers:
 Deploy it:
 
 ```
-$ kubectl apply -f <(kustomize build src/k8s/demo/)
+$ kubectl apply -f <(kustomize build k8s/)
 configmap/env-config unchanged
 service/app unchanged
 deployment.apps/app configured
@@ -229,7 +229,7 @@ readinessProbe:
 [Skaffold](https://skaffold.dev) is a tool from Google that helps reduce toil for the change-build-test cycle including deploying to Kubernetes. We can start with a really simple Docker based build (in `skaffold.yaml`):
 
 ```yaml
-apiVersion: skaffold/v2alpha3
+apiVersion: skaffold/v2beta3
 kind: Config
 build:
   artifacts:
@@ -238,7 +238,7 @@ build:
 deploy:
   kustomize:
     paths:
-      - "src/k8s/demo/"
+      - k8s
 ```
 
 Start the app:
@@ -257,13 +257,15 @@ You can test that the app is running on port 4503. Because of the way we defined
 
 - \+ Buildpack support in `pom.xml` or `build.gradle`
 - Actuators (separate port or not?)
-- \+ Graceful shutdown
 - \+ Liveness and Readiness as first class features
+- \+ Graceful shutdown
 - ? Support for actuators with Kubernetes API keys
 - Loading `application.properties` and `application.yml`
 - Autoconfiguration of databases, message brokers, etc.
 - Decryption of encrypted secrets in process (e.g. Spring Cloud Commons and Spring Cloud Vault)
 - Spring Cloud Kubernetes (direct access to Kubernetes API required for some features)
+
+## Buildpack Images
 
 To get a buildpack image, upgrade to Spring Boot 2.3 and run the plugin (`pom.xml`):
 
@@ -298,7 +300,7 @@ To get a buildpack image, upgrade to Spring Boot 2.3 and run the plugin (`pom.xm
 ```
 
 ```
-$ ./mvnw spring-boot:build-image
+$ ./mvnw spring-boot:build-image -Dspring-boot.build-image.imageName=localhost:5000/apps/demo
 ...
 [INFO] Successfully built image 'docker.io/library/demo:0.0.1-SNAPSHOT'
 [INFO]
@@ -306,7 +308,7 @@ $ ./mvnw spring-boot:build-image
 [INFO] BUILD SUCCESS
 [INFO] ------------------------------------------------------------------------
 ...
-$ docker run -p 8080:8080 demo:0.0.1-SNAPSHOT
+$ docker run -p 8080:8080 demo:0.0.1-SNAPSHOT localhost:5000/apps/demo
 Container memory limit unset. Configuring JVM for 1G container.
 Calculated JVM Memory Configuration: -XX:MaxDirectMemorySize=10M -XX:MaxMetaspaceSize=86381K -XX:ReservedCodeCacheSize=240M -Xss1M -Xmx450194K (Head Room: 0%, Loaded Class Count: 12837, Thread Count: 250, Total Memory: 1073741824)
 ...
@@ -331,7 +333,7 @@ You can also change the image tag (in `pom.xml` or on the command line with `-D`
 Skaffold has a custom builder option, so we can use that to hook in the buildpack support:
 
 ```yaml
-apiVersion: skaffold/v2alpha4
+apiVersion: skaffold/v2beta3
 kind: Config
 build:
   artifacts:
@@ -345,7 +347,7 @@ build:
 deploy:
   kustomize:
     paths:
-      - "src/k8s/demo/"
+      - k8s
 ```
 
 ## Hot Reload in Skaffold with Spring Boot Devtools
@@ -371,7 +373,7 @@ and make sure it gets added to the runtime image in (see `excludeDevtools`):
 Then in `skaffold.yaml` we can use changes in source files to sync to the running container instead of doing a full rebuild:
 
 ```yaml
-apiVersion: skaffold/v2alpha4
+apiVersion: skaffold/v2beta3
 kind: Config
 build:
   artifacts:
@@ -395,16 +397,182 @@ build:
 deploy:
   kustomize:
     paths:
-      - "src/k8s/demo/"
+      - k8s
 ```
 
 The key parts of this are the `custom.dependencies` and `sync.manual` fields. They have to match - i.e. no files are copied into the running container from `sync` if they don't appear also in `dependencies`.
+
+You need a `Dockerfile` that builds the app in `/workspace/app`, so here's one that works and has a cache for Maven artifacts:
+
+```
+# syntax=docker/dockerfile:experimental
+FROM openjdk:8-jdk-alpine as build
+WORKDIR /workspace/app
+
+COPY mvnw .
+COPY .mvn .mvn
+COPY pom.xml .
+COPY src src
+
+RUN --mount=type=cache,target=/root/.m2 ./mvnw install -DskipTests
+RUN mkdir -p target/dependency && (cd target/dependency; jar -xf ../*.jar)
+
+FROM openjdk:8-jdk-alpine
+VOLUME /tmp
+ARG DEPENDENCY=/workspace/app/target/dependency
+WORKDIR /workspace
+COPY --from=build ${DEPENDENCY}/BOOT-INF/lib app/lib
+COPY --from=build ${DEPENDENCY}/META-INF app/META-INF
+COPY --from=build ${DEPENDENCY}/BOOT-INF/classes app
+ENTRYPOINT ["java","-cp","app:app/lib/*","com.example.demo.DemoApplication"]
+```
 
 The effect is that if any `.java` or `.properties` files are changed, they are copied into the running container, and this causes Spring Boot to restart the app, usually quite quickly.
 
 > NOTE: You can use Skaffold and Maven "profiles" to keep the devtools stuff only at dev time. The production image can be built without the devtools dependency if the flag is inverted or the dependency is removed.
 
 > NOTE: You can't currently use Skaffold to trigger a restart in Dev Tools when you build the image using Spring Boot tools because the buildpack runs the app using a `JarLauncher` (from an exploded archive), and Spring Boot thinks that means you don't want to restart when files change.
+
+## Layered JARs
+
+Spring Boot 2.3 also has some [capabilities](https://docs.spring.io/spring-boot/docs/current-SNAPSHOT/maven-plugin/reference/html/#repackage) to unpack its executable jars in a way that can easily be mapped to more finely grained filesystem layers in a container. You have to switch on the layering feature in the build (in `pom.xml`):
+
+```
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+				<configuration>
+					<layers>
+						<enabled>true</enabled>
+					</layers>
+          ...
+          </configuration>
+			</plugin>
+```
+
+By default it splits a JAR into 4 layers and you can list and extract them by using the JAR file itself and a system property:
+
+```
+$ java -jar -Djarmode=layertools target/docker-demo-0.0.1-SNAPSHOT.jar list
+dependencies
+spring-boot-loader
+snapshot-dependencies
+application
+```
+
+> NOTE: It actually doesn't add much value over the standard JAR layout unless you have snapshot dependencies.
+
+Then if you ask it to `extract` (instead of `list`) it will dump the contents of those layers in the current directory. Here's a `Dockerfile` that works with that:
+
+```
+# syntax=docker/dockerfile:experimental
+FROM openjdk:8-jdk-alpine as build
+WORKDIR /workspace/app
+
+COPY mvnw .
+COPY .mvn .mvn
+COPY pom.xml .
+COPY src src
+
+RUN --mount=type=cache,target=/root/.m2 ./mvnw install -DskipTests
+RUN mkdir -p target/dependency && (cd target/dependency; java -Djarmode=layertools -jar ../*.jar extract)
+
+FROM openjdk:8-jre-alpine
+RUN addgroup -S demo && adduser -S demo -G demo
+VOLUME /tmp
+ARG DEPENDENCY=/workspace/app/target/dependency
+COPY --from=build ${DEPENDENCY}/dependencies/BOOT-INF/lib /app/lib
+COPY --from=build ${DEPENDENCY}/application/META-INF /app/META-INF
+COPY --from=build ${DEPENDENCY}/application/BOOT-INF/classes /app
+RUN chown -R demo:demo /app
+USER demo
+ENTRYPOINT ["sh", "-c", "java -cp /app:/app/lib/* com.example.demo.DemoApplication ${0} ${@}"]
+```
+
+If you want to get fancy you can tweak the layer definitions to make new layers and put whatever files you like in each layer.
+
+## Probes
+
+Kubernetes uses two probes to determine if the app is ready to accept traffic and whether the app is alive:
+
+* If the readiness probe does not return a `200` no trafic will be routed to it
+* If the liveness probe does not return a `200` kubernetes will restart the Pod
+
+Spring Boot has a build in set of endpoints from the [Actuator](https://spring.io/blog/2020/03/25/liveness-and-readiness-probes-with-spring-boot) module that fit nicely into these use cases
+
+* The `/health/readiness` endpoint indicates if the application is healthy, this fits with the readiness proble
+* The `/health/liveness` endpoint serves application info, we can use this to make sure the application is "alive"
+
+> NOTE: before Spring Boot 2.3, `/health` and `/info` worked just as well for most apps. The new endpoints are more flexible and configurable for specific use cases.
+
+Here's a basic patch that works (`k8s/probes.yaml`):
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+spec:
+  template:
+    spec:
+      containers:
+        - name: app
+          readinessProbe:
+            httpGet:
+              port: 8080
+              path: /actuator/health/readiness
+          livenessProbe:
+            httpGet:
+              port: 8080
+              path: /actuator/health/liveness
+```
+
+You can install it in the `kustomization.yaml`:
+
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+commonLabels:
+  app: demo
+images:
+  - name: dsyer/template
+    newName: localhost:5000/apps/demo
+resources:
+  - github.com/dsyer/docker-services/layers/base
+patchesStrategicMerge:
+  - probes.yaml
+```
+
+## Graceful Shutdown
+
+Kubernetes sends `SIGTERM` to containers it wants to shutdown. It tries to shield them from further traffic, but there are no guarantees in a distributed system. It then waits for a grace period (by default 30s) before shooting the container in the head.
+
+If your app has a lot of traffic, or takes a long time to process requests, you may have to take steps to avoid lost connections. One thing you can always do is add a sleep to the Kubernetes `preStop` hook:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+spec:
+  template:
+    spec:
+      containers:
+        - name: app
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 10"]
+```
+
+Also, it is possible that the `ApplicationContext` could close before the HTTP server shuts down, so in-flight requests can fail because they no longer have access to database connections etc. Spring Boot 2.3 has some new configuration properties
+
+```
+server.shutdown=graceful
+spring.lifecycle.timeout-per-shutdown-phase=20s
+```
+
+to delay the hard stop of the HTTP server while the `ApplicationContext` is still running.
 
 ## The Bad Bits: Ingress
 
@@ -436,7 +604,7 @@ spec:
 Apply this YAML and check the status:
 
 ```
-$ kubectl apply -f src/k8s/demo/ingress.yaml
+$ kubectl apply -f k8s/ingress.yaml
 $ kubectl get ingress
 NAME      HOSTS   ADDRESS       PORTS   AGE
 ingress   demo    10.103.4.16   80      2m15s
