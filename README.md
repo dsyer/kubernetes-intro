@@ -1,15 +1,36 @@
+* [Pre-requisites](#pre-requisites)
+* [Getting Started](#getting-started)
+* [Deploy to Kubernetes](#deploy-to-kubernetes)
+* [Organize with Kustomize](#organize-with-kustomize)
+* [Modularize](#modularize)
+* [Developer Experience with Skaffold](#developer-experience-with-skaffold)
+* [Spring Boot Features](#spring-boot-features)
+* [Buildpack Images](#buildpack-images)
+* [Using Spring Boot Docker Images with Skaffold](#using-spring-boot-docker-images-with-skaffold)
+* [Hot Reload in Skaffold with Spring Boot Devtools](#hot-reload-in-skaffold-with-spring-boot-devtools)
+* [Layered JARs](#layered-jars)
+* [Probes](#probes)
+* [Graceful Shutdown](#graceful-shutdown)
+* [The Bad Bits: Ingress](#the-bad-bits-ingress)
+* [The Bad Bits: Persistent Volumes](#the-bad-bits-persistent-volumes)
+* [The Bad Bits: Secrets](#the-bad-bits-secrets)
+* [A Different Approach to Boilerplate YAML](#a-different-approach-to-boilerplate-yaml)
+* [Another Idea](#another-idea)
+* [Metrics Server](#metrics-server)
+* [Autoscaler](#autoscaler)
+
 ## Pre-requisites
 
 You need Docker. If you can install [Nix](https://nixos.org/nix/) then do that and then just `nix-shell` on your command line to install all dependencies except Docker. If you can't do that, you will need to install them manually. Here's what it installs:
 
 - `jdk11`
-- `apacheHttpd` just to get the `ab` utility for load generation
 - `kind` (you might not need that if you can get hold of a Kubernetes cluster some other way)
 - `kubectl`
 - `kustomize`
 - `skaffold`
+- `apacheHttpd` just to get the `ab` utility for load generation
 
-There is also `kind-setup.sh` script that you might feel like using to set up a Kubernetes cluster and a Docker registry (`nix-shell` will run it automatically). Maybe an IDE would come in handy, but not mandatory (`nix-shell` installs VSCode and adds some useful extensions).
+There is also `kind-setup.sh` script that you might feel like using to set up a Kubernetes cluster and a Docker registry (`nix-shell` will run it automatically). Maybe an IDE would come in handy, but not mandatory.
 
 ## Getting Started
 
@@ -65,12 +86,17 @@ $ curl localhost:8080
 Hello World
 ```
 
+Stash the image for later in our local repository (which was started with `kind-setup` if you used that):
+
+```
+$ docker push localhost:5000/apps/demo
+```
+
 ## Deploy to Kubernetes
 
 Create a basic manifest:
 
 ```
-$ docker push localhost:5000/apps/demo
 $ kubectl create deployment demo --image=localhost:5000/apps/demo --dry-run -o=yaml > deployment.yaml
 $ echo --- >> deployment.yaml
 $ kubectl create service clusterip demo --tcp=80:8080 --dry-run -o=yaml >> deployment.yaml
@@ -255,15 +281,15 @@ You can test that the app is running on port 4503. Because of the way we defined
 
 ## Spring Boot Features
 
+- Loading `application.properties` and `application.yml`
+- Autoconfiguration of databases, message brokers, etc.
+- Decryption of encrypted secrets in process (e.g. Spring Cloud Commons and Spring Cloud Vault)
+- Spring Cloud Kubernetes (direct access to Kubernetes API required for some features)
 - \+ Buildpack support in `pom.xml` or `build.gradle`
 - Actuators (separate port or not?)
 - \+ Liveness and Readiness as first class features
 - \+ Graceful shutdown
 - ? Support for actuators with Kubernetes API keys
-- Loading `application.properties` and `application.yml`
-- Autoconfiguration of databases, message brokers, etc.
-- Decryption of encrypted secrets in process (e.g. Spring Cloud Commons and Spring Cloud Vault)
-- Spring Cloud Kubernetes (direct access to Kubernetes API required for some features)
 
 ## Buildpack Images
 
@@ -300,6 +326,7 @@ To get a buildpack image, upgrade to Spring Boot 2.3 and run the plugin (`pom.xm
 ```
 
 ```
+$ rm Dockerfile
 $ ./mvnw spring-boot:build-image -Dspring-boot.build-image.imageName=localhost:5000/apps/demo
 ...
 [INFO] Successfully built image 'docker.io/library/demo:0.0.1-SNAPSHOT'
