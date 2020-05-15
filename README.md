@@ -293,7 +293,7 @@ You can test that the app is running on port 4503. Because of the way we defined
 
 ## Buildpack Images
 
-To get a buildpack image, upgrade to Spring Boot 2.3 and run the plugin (`pom.xml`):
+To get a buildpack image, ensure you are using Spring Boot 2.3 (`pom.xml`):
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -303,27 +303,13 @@ To get a buildpack image, upgrade to Spring Boot 2.3 and run the plugin (`pom.xm
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>2.3.0.RC1</version>
+		<version>2.3.0.RELEASE</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
-...
-	<repositories>
-		<repository>
-			<id>spring-milestones</id>
-			<name>Spring Milestones</name>
-			<url>https://repo.spring.io/milestone</url>
-		</repository>
-		</repositories>
-		<pluginRepositories>
-		<pluginRepository>
-			<id>spring-milestones</id>
-			<name>Spring Milestones</name>
-			<url>https://repo.spring.io/milestone</url>
-		</pluginRepository>
-	</pluginRepositories>
-
 </project>
 ```
+
+and run the plugin on the command line:
 
 ```
 $ rm Dockerfile
