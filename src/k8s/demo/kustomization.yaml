@@ -8,4 +8,4 @@ images:
 resources:
 - deployment.yaml
 transformers:
-- github.com/dsyer/docker-services/layers/actuator
+- github.com/dsyer/docker-services/layers/actuator?ref=main
