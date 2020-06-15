@@ -34,7 +34,7 @@ There is also `kind-setup.sh` script that you might feel like using to set up a 
 
 ## Getting Started
 
-Create a basic Spring Boot application:
+Create a Spring Boot application:
 
 ```
 $ curl https://start.spring.io/starter.tgz -d dependencies=webflux -d dependencies=actuator | tar -xzvf -
