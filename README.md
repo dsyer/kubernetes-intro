@@ -343,7 +343,36 @@ You can also change the image tag (in `pom.xml` or on the command line with `-D`
 
 ## Using Spring Boot Docker Images with Skaffold
 
-Skaffold has a custom builder option, so we can use that to hook in the buildpack support:
+If you use SKaffold 1.11.0 or better you can use the `buildpacks` builder:
+
+```yaml
+apiVersion: skaffold/v2beta5
+kind: Config
+build:
+  artifacts:
+    - image: localhost:5000/apps/demo
+      buildpacks:
+        builder: gcr.io/paketo-buildpacks/builder:base-platform-api-0.3
+        dependencies:
+          paths:
+            - pom.xml
+            - src/main/resources
+            - target/classes
+      sync:
+        manual:
+          - src: "src/main/resources/**/*"
+            dest: /workspace/BOOT-INF/classes
+            strip: src/main/resources/
+          - src: "target/classes/**/*"
+            dest: /workspace/BOOT-INF/classes
+            strip: target/classes/
+deploy:
+  kustomize:
+    paths:
+      - "src/k8s/demo/"
+```
+
+Skaffold also has a custom builder option, so we can use that to do the same thing effectively:
 
 ```yaml
 apiVersion: skaffold/v2beta3
@@ -353,14 +382,7 @@ build:
     - image: localhost:5000/apps/demo
       custom:
         buildCommand: ./mvnw spring-boot:build-image -D spring-boot.build-image.imageName=$IMAGE && docker push $IMAGE
-        dependencies:
-          paths:
-            - src
-            - pom.xml
-deploy:
-  kustomize:
-    paths:
-      - k8s
+        ...
 ```
 
 ## Hot Reload in Skaffold with Spring Boot Devtools

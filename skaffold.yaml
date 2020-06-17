@@ -1,10 +1,12 @@
-apiVersion: skaffold/v2alpha4
+apiVersion: skaffold/v2beta5
 kind: Config
 build:
   artifacts:
     - image: localhost:5000/apps/demo
-      custom:
-        buildCommand: ./mvnw spring-boot:build-image -D spring-boot.build-image.imageName=$IMAGE && docker push $IMAGE
+#      custom:
+#        buildCommand: ./mvnw spring-boot:build-image -D spring-boot.build-image.imageName=$IMAGE && docker push $IMAGE
+      buildpacks:
+        builder: gcr.io/paketo-buildpacks/builder:base-platform-api-0.3
         dependencies:
           paths:
             - pom.xml
