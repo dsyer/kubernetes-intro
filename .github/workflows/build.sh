@@ -26,6 +26,6 @@ for test in simple; do
   echo "##[endgroup]"
 done
 
-echo "##[group]Skaffold"
-(cd ${basedir}; skaffold run && skaffold delete)
-echo "##[endgroup]"
+#echo "##[group]Skaffold"
+#(cd ${basedir}; skaffold run && skaffold delete)
+#echo "##[endgroup]"
