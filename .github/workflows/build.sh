@@ -25,3 +25,7 @@ for test in simple; do
       --dry-run --namespace ${NAMESPACE}
   echo "##[endgroup]"
 done
+
+echo "##[group]Skaffold"
+(cd ${basedir}; skaffold run && skaffold delete)
+echo "##[endgroup]"

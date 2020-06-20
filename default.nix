@@ -8,12 +8,12 @@ let
 
   skaffold = stdenv.mkDerivation {
     pname = "skaffold";
-    version = "1.9.1";
+    version = "1.11.0";
     src = fetchurl {
       # nix-prefetch-url this URL to find the hash value
       url =
-        "https://storage.googleapis.com/skaffold/releases/v1.9.1/skaffold-linux-amd64";
-      sha256 = "1rbk96kh4v955frmccbg9g1hqlgzzrn0zkmx9vpyxyywhfmdny30";
+        "https://storage.googleapis.com/skaffold/releases/v1.11.0/skaffold-linux-amd64";
+      sha256 = "0r7r505r1zyqqfid4s6wd6mpi01bksazri094h8p9nmqhk4xa8yb";
     };
     phases = [ "installPhase" "patchPhase" ];
     installPhase = ''
