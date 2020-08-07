@@ -343,7 +343,7 @@ You can also change the image tag (in `pom.xml` or on the command line with `-D`
 
 ## Using Spring Boot Docker Images with Skaffold
 
-If you use SKaffold 1.11.0 or better you can use the `buildpacks` builder:
+If you use Skaffold 1.11.0 or better you can use the `buildpacks` builder:
 
 ```yaml
 apiVersion: skaffold/v2beta5
