@@ -385,19 +385,6 @@ build:
         ...
 ```
 
-In fact, with `v2beta5` there is also a `buildpacks` option:
-
-```yaml
-apiVersion: skaffold/v2beta5
-kind: Config
-build:
-  artifacts:
-    - image: localhost:5000/apps/demo
-      buildpacks:
-        builder: gcr.io/paketo-buildpacks/builder:base-platform-api-0.3
-        ...
-```
-
 ## Hot Reload in Skaffold with Spring Boot Devtools
 
 Add `spring-boot-devtools` to your project `pom.xml`:
