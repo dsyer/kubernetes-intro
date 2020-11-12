@@ -769,7 +769,7 @@ W0323 08:01:25.173488   18448 top_pod.go:266] Metrics not available for pod defa
 error: Metrics not available for pod default/app-5f969c594d-79s79, age: 65h4m54.173475197s
 ```
 
-But you _can_ install it using the manifests in the [source code](https://github.com/kubernetes-sigs/metrics-server/blob/master/deploy/kubernetes/) (or this [gist](https://gist.github.com/hjacobs/69b6844ba8442fcbc2007da316499eb4)). It is available here as well:
+But you _can_ install it using the manifests in the [source code](https://github.com/kubernetes-sigs/metrics-server/blob/master/deploy/kubernetes/). You might need to tweak the deployment of the `metrics-server` to allow it to access the k8s API. A manifest is available here:
 
 ```
 $ kubectl apply -f src/k8s/metrics
