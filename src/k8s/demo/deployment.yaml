@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: app
 spec:
-  replicas: 2
+  replicas: 1
   template:
     spec:
       containers:
@@ -12,17 +12,17 @@ spec:
         env:
         - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
           value: "*"
-        - name: JAVA_OPTS
-          value: -Dspring.main.lazy-initialization=true -noverify -XX:TieredStopAtLevel=1  -agentlib:jdwp=transport=dt_socket,suspend=n,server=y,address=50005
+        - name: JAVA_TOOL_OPTIONS
+          value: -Dspring.devtools.restart.enabled=true
         - name: POD_NAME
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
         resources:
           requests:
-            cpu: 200m
-          limits:
             cpu: 500m
+          limits:
+            cpu: 4000m
 ---
 apiVersion: v1
 kind: Service

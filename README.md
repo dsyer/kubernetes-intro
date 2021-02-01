@@ -255,7 +255,7 @@ readinessProbe:
 [Skaffold](https://skaffold.dev) is a tool from Google that helps reduce toil for the change-build-test cycle including deploying to Kubernetes. We can start with a really simple Docker based build (in `skaffold.yaml`):
 
 ```yaml
-apiVersion: skaffold/v2beta3
+apiVersion: skaffold/v2beta10
 kind: Config
 build:
   artifacts:
@@ -293,19 +293,19 @@ You can test that the app is running on port 4503. Because of the way we defined
 
 ## Buildpack Images
 
-To get a buildpack image, ensure you are using Spring Boot 2.3 (`pom.xml`):
+To get a buildpack image, ensure you are using Spring Boot at least 2.3 (`pom.xml`):
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-	<modelVersion>4.0.0</modelVersion>
-	<parent>
-		<groupId>org.springframework.boot</groupId>
-		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>2.3.0.RELEASE</version>
-		<relativePath/> <!-- lookup parent from repository -->
-	</parent>
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>2.4.2</version>
+    <relativePath/> <!-- lookup parent from repository -->
+  </parent>
 </project>
 ```
 
@@ -334,10 +334,10 @@ You can also change the image tag (in `pom.xml` or on the command line with `-D`
 ```xml
 <project>
     ...
-	<properties>
-		<java.version>1.8</java.version>
-		<spring-boot.build-image.imageName>localhost:5000/apps/${project.artifactId}</spring-boot.build-image.imageName>
-	</properties>
+  <properties>
+    <java.version>1.8</java.version>
+    <spring-boot.build-image.imageName>localhost:5000/apps/${project.artifactId}</spring-boot.build-image.imageName>
+  </properties>
 </project>
 ```
 
@@ -346,13 +346,13 @@ You can also change the image tag (in `pom.xml` or on the command line with `-D`
 If you use Skaffold 1.11.0 or better you can use the `buildpacks` builder:
 
 ```yaml
-apiVersion: skaffold/v2beta5
+apiVersion: skaffold/v2beta10
 kind: Config
 build:
   artifacts:
     - image: localhost:5000/apps/demo
       buildpacks:
-        builder: gcr.io/paketo-buildpacks/builder:base-platform-api-0.3
+        builder: gcr.io/paketo-buildpacks/builder:base
         dependencies:
           paths:
             - pom.xml
@@ -375,7 +375,7 @@ deploy:
 Skaffold also has a custom builder option, so we can use that to do the same thing effectively:
 
 ```yaml
-apiVersion: skaffold/v2beta3
+apiVersion: skaffold/v2beta10
 kind: Config
 build:
   artifacts:
@@ -400,89 +400,69 @@ Add `spring-boot-devtools` to your project `pom.xml`:
 and make sure it gets added to the runtime image in (see `excludeDevtools`):
 
 ```xml
-	<properties>
-		<spring-boot.repackage.excludeDevtools>false</spring-boot.repackage.excludeDevtools>
-	</properties>
+  <properties>
+    <spring-boot.repackage.excludeDevtools>false</spring-boot.repackage.excludeDevtools>
+  </properties>
 ```
 
-Then in `skaffold.yaml` we can use changes in source files to sync to the running container instead of doing a full rebuild:
-
-```yaml
-apiVersion: skaffold/v2beta3
-kind: Config
-build:
-  artifacts:
-    - image: localhost:5000/apps/demo
-      custom:
-        buildCommand: docker build -t $IMAGE . && docker push $IMAGE
-        dependencies:
-          paths:
-            - pom.xml
-            - src/main/resources
-            - target/classes
-            - Dockerfile
-      sync:
-        manual:
-          - src: "src/main/resources/**/*"
-            dest: /workspace/app
-            strip: src/main/resources/
-          - src: "target/classes/**/*"
-            dest: /workspace/app
-            strip: target/classes/
-deploy:
-  kustomize:
-    paths:
-      - k8s
-```
-
-The key parts of this are the `custom.dependencies` and `sync.manual` fields. They have to match - i.e. no files are copied into the running container from `sync` if they don't appear also in `dependencies`.
-
-You need a `Dockerfile` that builds the app in `/workspace/app`, so here's one that works and has a cache for Maven artifacts:
-
-```
-# syntax=docker/dockerfile:experimental
-FROM openjdk:8-jdk-alpine as build
-WORKDIR /workspace/app
-
-COPY mvnw .
-COPY .mvn .mvn
-COPY pom.xml .
-COPY src src
-
-RUN --mount=type=cache,target=/root/.m2 ./mvnw install -DskipTests
-RUN mkdir -p target/dependency && (cd target/dependency; jar -xf ../*.jar)
-
-FROM openjdk:8-jdk-alpine
-VOLUME /tmp
-ARG DEPENDENCY=/workspace/app/target/dependency
-WORKDIR /workspace
-COPY --from=build ${DEPENDENCY}/BOOT-INF/lib app/lib
-COPY --from=build ${DEPENDENCY}/META-INF app/META-INF
-COPY --from=build ${DEPENDENCY}/BOOT-INF/classes app
-ENTRYPOINT ["java","-cp","app:app/lib/*","com.example.demo.DemoApplication"]
-```
-
-The effect is that if any `.java` or `.properties` files are changed, they are copied into the running container, and this causes Spring Boot to restart the app, usually quite quickly.
+Then in `skaffold.yaml` we can use changes in source files to sync to the running container instead of doing a full rebuild.
+The key parts of this are the `custom.dependencies` and `sync.manual` fields. They have to match - i.e. no files are copied into the running container from `sync` if they don't appear also in `dependencies`. The effect is that if any `.java` or `.properties` files are changed, they are copied into the running container, and this causes Spring Boot to restart the app, usually quite quickly.
 
 > NOTE: You can use Skaffold and Maven "profiles" to keep the devtools stuff only at dev time. The production image can be built without the devtools dependency if the flag is inverted or the dependency is removed.
 
-> NOTE: You can't currently use Skaffold to trigger a restart in Dev Tools when you build the image using Spring Boot tools because the buildpack runs the app using a `JarLauncher` (from an exploded archive), and Spring Boot thinks that means you don't want to restart when files change.
+You need to tell Spring Boot that it should run with devtools reloading, even though it is running from the `JarLauncher`. You can do that by setting an environment variable in the pod container: `JAVA_TOOL_OPTIONS` which is appended to the JVM launch args (the value is `-Dspring.devtools.restart.enabled=true`). Environment variables can be set in `deployment.yaml`:
+
+```yaml
+...
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+      - image: apps/demo
+        name: app
+        - name: JAVA_TOOL_OPTIONS
+          value: -Dspring.devtools.restart.enabled=true
+...
+```
+
+or via the buildpack (in `pom.xml`):
+
+```
+<build>
+  <plugins>
+    <plugin>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-maven-plugin</artifactId>
+      <configuration>
+        <image>
+          <env>
+            <BPE_APPEND_JAVA_TOOL_OPTIONS>-Dspring.devtools.restart.enabled=true</BPE_APPEND_JAVA_TOOL_OPTIONS>
+            <BPE_DELIM_JAVA_TOOL_OPTIONS xml:space="preserve"> </BPE_DELIM_JAVA_TOOL_OPTIONS>
+          </env>
+        </image>
+        <excludeDevtools>false</excludeDevtools>
+      </configuration>
+    </plugin>
+  </plugins>
+</build>
+```
 
 ## Layered JARs
 
 Spring Boot 2.3 also has some [capabilities](https://docs.spring.io/spring-boot/docs/current-SNAPSHOT/maven-plugin/reference/html/#repackage) to unpack its executable jars in a way that can easily be mapped to more finely grained filesystem layers in a container. You have to switch on the layering feature in the build (in `pom.xml`):
 
 ```
-			<plugin>
-				<groupId>org.springframework.boot</groupId>
-				<artifactId>spring-boot-maven-plugin</artifactId>
-				<configuration>
-					<layers>
-						<enabled>true</enabled>
-					</layers>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+        <configuration>
+          <layers>
+            <enabled>true</enabled>
+          </layers>
           ...
           </configuration>
-			</plugin>
+      </plugin>
 ```
 
 By default it splits a JAR into 4 layers and you can list and extract them by using the JAR file itself and a system property:

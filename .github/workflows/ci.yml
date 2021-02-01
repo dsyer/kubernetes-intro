@@ -23,8 +23,8 @@ jobs:
       run: |
         job=$(date +%s) # TODO use something that is assigned by CI to guarantee uniqueness
         echo "JOB_ID=${job}"
-        echo "##[set-env name=CLUSTER_NAME]cli-${job}-${{ matrix.config.qualifier }}"
-        echo "##[set-env name=NAMESPACE]cli-${job}-${{ matrix.config.qualifier }}"
+        echo "CLUSTER_NAME=cli-${job}-${{ matrix.config.qualifier }}" >> $GITHUB_ENV
+        echo "NAMESPACE=cli-${job}-${{ matrix.config.qualifier }}" >> $GITHUB_ENV
         nix-env -i -f default.nix
         ./.github/workflows/kind-setup.sh
       shell: bash
